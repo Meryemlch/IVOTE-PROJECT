@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iVOTE - Register</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-[#f4f7ff] flex items-center justify-center min-h-screen font-sans relative overflow-hidden">
+
+    <!-- DECORATION GAUCHE -->
+    <div class="absolute left-0 top-0 h-full w-24 bg-gradient-to-b from-blue-400 to-blue-700 opacity-20 rounded-r-full blur-3xl"></div>
+
+    <!-- DECORATION DROITE -->
+    <div class="absolute right-0 top-0 h-full w-24 bg-gradient-to-b from-blue-400 to-blue-700 opacity-20 rounded-l-full blur-3xl"></div>
+
+    <div class="bg-white w-full max-w-5xl rounded-2xl shadow-xl p-4 relative z-10 flex flex-col md:flex-row">
+
+        <!-- SECTION GAUCHE - IMAGE -->
+        <div class="md:w-1/2 flex items-center justify-center p-4">
+            <div class="w-full max-w-xs text-center">
+                <img src="images/undraw_online-survey_xq2g.svg" alt="Enquête en ligne" class="w-full h-auto max-h-48 mx-auto">
+                <div class="mt-2">
+                    <h2 class="text-base font-bold text-gray-800">Votez en toute sécurité</h2>
+                    <p class="text-gray-600 mt-1 text-xs">Notre système garantit la confidentialité et l'intégrité de votre vote.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION DROITE - FORMULAIRE -->
+        <div class="md:w-1/2 p-4">
+
+            <!-- LOGO -->
+            <div class="flex justify-center mb-2">
+                <div class="bg-[#4663e6] text-white font-bold rounded-full px-6 py-1.5 text-lg shadow">iVOTE</div>
+            </div>
+
+            <h1 class="text-xl font-bold text-gray-900 mb-1 text-center">Créer un compte</h1>
+            <p class="text-gray-500 text-xs mb-4 text-center">Inscrivez-vous pour accéder au système de vote sécurisé</p>
+
+            <!-- FORMULAIRE -->
+            <form id="registerForm" class="space-y-2">
+
+                <!-- 2 CHAMPS SUR LA MÊME LIGNE -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                        <input type="text" id="prenom" placeholder="Prénom" class="w-full px-2 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        <span id="prenomError" class="text-red-500 text-xs hidden">Prénom requis (lettres uniquement)</span>
+                    </div>
+                    <div>
+                        <input type="text" id="nom" placeholder="Nom" class="w-full px-2 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        <span id="nomError" class="text-red-500 text-xs hidden">Nom requis (lettres uniquement)</span>
+                    </div>
+                </div>
+
+                <!-- TELEPHONE AVEC SELECTEUR DE PAYS -->
+                <div class="flex gap-2">
+                    <select id="countryCode" class="px-2 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        <option value="+212">🇲🇦 +212</option>
+                        <option value="+33">🇫🇷 +33</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+49">🇩🇪 +49</option>
+                        <option value="+39">🇮🇹 +39</option>
+                        <option value="+213">🇩🇿 +213</option>
+                        <option value="+216">🇹🇳 +216</option>
+                        <option value="+966">🇸🇦 +966</option>
+                    </select>
+                    <div class="flex-1">
+                        <input type="tel" id="telephone" placeholder="6 00 00 00 00" class="w-full px-2 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        <span id="telephoneError" class="text-red-500 text-xs hidden">Numéro invalide</span>
+                    </div>
+                </div>
+
+                <!-- EMAIL -->
+                <div>
+                    <input type="email" id="email" placeholder="email@example.com" class="w-full px-2 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    <span id="emailError" class="text-red-500 text-xs hidden">Email invalide</span>
+                </div>
+
+                <!-- PASSWORD -->
+                <div>
+                    <input type="password" id="password" placeholder="Mot de passe" class="w-full px-2 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    <span id="passwordError" class="text-red-500 text-xs hidden">Mot de passe trop faible</span>
+                    
+                    <!-- INDICATEUR DE FORCE -->
+                    <div class="mt-1 flex gap-1">
+                        <div id="strength1" class="h-1 flex-1 rounded bg-gray-200"></div>
+                        <div id="strength2" class="h-1 flex-1 rounded bg-gray-200"></div>
+                        <div id="strength3" class="h-1 flex-1 rounded bg-gray-200"></div>
+                        <div id="strength4" class="h-1 flex-1 rounded bg-gray-200"></div>
+                    </div>
+                    <span id="strengthText" class="text-xs text-gray-500"></span>
+                </div>
+
+                <!-- CONFIRM PASSWORD -->
+                <div>
+                    <input type="password" id="confirmPassword" placeholder="Confirmer mot de passe" class="w-full px-2 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    <span id="confirmPasswordError" class="text-red-500 text-xs hidden">Les mots de passe ne correspondent pas</span>
+                </div>
+
+                <!-- CHECKBOX TERMES -->
+                <div>
+                    <div class="flex items-center text-xs">
+                        <input type="checkbox" id="terms" class="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="terms" class="ml-2 text-gray-700">
+                            J'accepte les <a href="#" class="text-blue-600 hover:underline">conditions d'utilisation</a> et la <a href="#" class="text-blue-600 hover:underline">politique de confidentialité</a>
+                        </label>
+                    </div>
+                    <span id="termsError" class="text-red-500 text-xs hidden">Vous devez accepter les conditions</span>
+                </div>
+
+                <!-- BUTTON -->
+                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 rounded-lg shadow hover:opacity-90 text-sm font-semibold">
+                    S'INSCRIRE
+                </button>
+
+            </form>
+
+            <div class="mt-2 text-xs text-center text-gray-600">
+                Déjà inscrit ?
+                <a href="#" class="text-blue-700 font-semibold hover:underline">Se connecter</a>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registerForm');
+        const prenom = document.getElementById('prenom');
+        const nom = document.getElementById('nom');
+        const telephone = document.getElementById('telephone');
+        const email = document.getElementById('email');
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirmPassword');
+        const terms = document.getElementById('terms');
+
+        // Validation prénom et nom (lettres uniquement)
+        function validateName(input, errorId) {
+            const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+            const error = document.getElementById(errorId);
+            if (input.value.trim() === '' || !nameRegex.test(input.value)) {
+                error.classList.remove('hidden');
+                input.classList.add('border-red-500');
+                return false;
+            } else {
+                error.classList.add('hidden');
+                input.classList.remove('border-red-500');
+                return true;
+            }
+        }
+
+        // Validation téléphone
+        function validatePhone() {
+            const phoneRegex = /^[0-9\s]{9,15}$/;
+            const error = document.getElementById('telephoneError');
+            if (!phoneRegex.test(telephone.value.replace(/\s/g, ''))) {
+                error.classList.remove('hidden');
+                telephone.classList.add('border-red-500');
+                return false;
+            } else {
+                error.classList.add('hidden');
+                telephone.classList.remove('border-red-500');
+                return true;
+            }
+        }
+
+        // Validation email
+        function validateEmail() {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const error = document.getElementById('emailError');
+            if (!emailRegex.test(email.value)) {
+                error.classList.remove('hidden');
+                email.classList.add('border-red-500');
+                return false;
+            } else {
+                error.classList.add('hidden');
+                email.classList.remove('border-red-500');
+                return true;
+            }
+        }
+
+        // Vérification force du mot de passe
+        function checkPasswordStrength() {
+            const val = password.value;
+            let strength = 0;
+            
+            if (val.length >= 8) strength++;
+            if (/[a-z]/.test(val) && /[A-Z]/.test(val)) strength++;
+            if (/[0-9]/.test(val)) strength++;
+            if (/[^a-zA-Z0-9]/.test(val)) strength++;
+
+            const bars = [
+                document.getElementById('strength1'),
+                document.getElementById('strength2'),
+                document.getElementById('strength3'),
+                document.getElementById('strength4')
+            ];
+
+            const strengthText = document.getElementById('strengthText');
+            const passwordError = document.getElementById('passwordError');
+
+            bars.forEach(bar => bar.className = 'h-1 flex-1 rounded bg-gray-200');
+
+            if (strength === 0) {
+                strengthText.textContent = '';
+                passwordError.classList.add('hidden');
+            } else if (strength === 1) {
+                bars[0].classList.add('bg-red-500');
+                strengthText.textContent = 'Très faible';
+                strengthText.className = 'text-xs text-red-500';
+                passwordError.classList.remove('hidden');
+            } else if (strength === 2) {
+                bars[0].classList.add('bg-orange-500');
+                bars[1].classList.add('bg-orange-500');
+                strengthText.textContent = 'Faible';
+                strengthText.className = 'text-xs text-orange-500';
+                passwordError.classList.remove('hidden');
+            } else if (strength === 3) {
+                bars[0].classList.add('bg-yellow-500');
+                bars[1].classList.add('bg-yellow-500');
+                bars[2].classList.add('bg-yellow-500');
+                strengthText.textContent = 'Moyen';
+                strengthText.className = 'text-xs text-yellow-600';
+                passwordError.classList.add('hidden');
+            } else {
+                bars.forEach(bar => bar.classList.add('bg-green-500'));
+                strengthText.textContent = 'Fort';
+                strengthText.className = 'text-xs text-green-500';
+                passwordError.classList.add('hidden');
+            }
+
+            return strength >= 3;
+        }
+
+        // Validation confirmation mot de passe
+        function validateConfirmPassword() {
+            const error = document.getElementById('confirmPasswordError');
+            if (password.value !== confirmPassword.value || confirmPassword.value === '') {
+                error.classList.remove('hidden');
+                confirmPassword.classList.add('border-red-500');
+                return false;
+            } else {
+                error.classList.add('hidden');
+                confirmPassword.classList.remove('border-red-500');
+                return true;
+            }
+        }
+
+        // Validation des termes
+        function validateTerms() {
+            const error = document.getElementById('termsError');
+            if (!terms.checked) {
+                error.classList.remove('hidden');
+                return false;
+            } else {
+                error.classList.add('hidden');
+                return true;
+            }
+        }
+
+        // Vérification en temps réel de l'email
+        email.addEventListener('blur', async function() {
+            if (validateEmail()) {
+                try {
+                    const response = await fetch('/api/check-email', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email: email.value })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.exists) {
+                        document.getElementById('emailError').textContent = 'Cet email est déjà utilisé';
+                        document.getElementById('emailError').classList.remove('hidden');
+                        email.classList.add('border-red-500');
+                    } else {
+                        // Si l'email est valide et n'existe pas, enlever l'erreur
+                        document.getElementById('emailError').classList.add('hidden');
+                        email.classList.remove('border-red-500');
+                    }
+                } catch (error) {
+                    console.error('Erreur vérification email:', error);
+                }
+            }
+        });
+
+        // Vérification en temps réel du téléphone
+        telephone.addEventListener('blur', async function() {
+            if (validatePhone()) {
+                try {
+                    const response = await fetch('/api/check-phone', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ telephone: telephone.value })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.exists) {
+                        document.getElementById('telephoneError').textContent = 'Ce numéro est déjà utilisé';
+                        document.getElementById('telephoneError').classList.remove('hidden');
+                        telephone.classList.add('border-red-500');
+                    } else {
+                        // Si le téléphone est valide et n'existe pas, enlever l'erreur
+                        document.getElementById('telephoneError').classList.add('hidden');
+                        telephone.classList.remove('border-red-500');
+                    }
+                } catch (error) {
+                    console.error('Erreur vérification téléphone:', error);
+                }
+            }
+        });
+
+        // Événements en temps réel
+        prenom.addEventListener('input', () => validateName(prenom, 'prenomError'));
+        nom.addEventListener('input', () => validateName(nom, 'nomError'));
+        telephone.addEventListener('input', validatePhone);
+        email.addEventListener('input', validateEmail);
+        password.addEventListener('input', checkPasswordStrength);
+        confirmPassword.addEventListener('input', validateConfirmPassword);
+        terms.addEventListener('change', validateTerms);
+
+        // Fonction pour afficher la popup de vérification email (CORRIGÉE)
+        function showEmailVerificationPopup(formData, emailSent) {
+            // Supprimer toute popup existante
+            const existingPopup = document.querySelector('.email-verification-popup');
+            if (existingPopup) {
+                existingPopup.remove();
+            }
+
+            const popupHTML = `
+                <div class="email-verification-popup fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white p-6 rounded-xl max-w-md w-full animate-fade-in">
+                        <div class="text-center">
+                            <!-- Icône email -->
+                            <div class="w-16 h-16 ${emailSent ? 'bg-blue-100' : 'bg-yellow-100'} rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-8 h-8 ${emailSent ? 'text-blue-600' : 'text-yellow-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                          d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                                    </path>
+                                </svg>
+                            </div>
+                            
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">
+                                ${emailSent ? '📧 Vérifiez votre email !' : '⚠️ Email non envoyé'}
+                            </h3>
+                            
+                            <p class="text-gray-600 mb-4">
+                                ${emailSent 
+                                    ? `Nous avons envoyé un lien de vérification à :<br><strong class="text-blue-600">${formData.email}</strong>`
+                                    : `L'email n'a pas pu être envoyé à <strong class="text-blue-600">${formData.email}</strong><br>Veuillez vérifier votre adresse email.`
+                                }
+                            </p>
+                            
+                            ${!emailSent ? `
+                                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-sm">
+                                    <p class="text-yellow-800">
+                                        <span class="font-semibold">Note :</span> 
+                                        Votre compte a été créé mais l'email de vérification n'a pas pu être envoyé.
+                                        Vous pouvez essayer de vous connecter ou contacter le support.
+                                    </p>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="text-xs text-gray-500 mb-6 space-y-1">
+                                <p class="flex items-center justify-center">
+                                    <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Lien valable 24 heures
+                                </p>
+                                <p class="flex items-center justify-center">
+                                    <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Vérifiez vos spams si nécessaire
+                                </p>
+                            </div>
+                            
+                            <div class="flex flex-col gap-3">
+                                <button onclick="closeVerificationPopup()" 
+                                        class="w-full ${emailSent ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'} text-white px-4 py-2.5 rounded-lg transition duration-200 font-medium">
+                                    ${emailSent ? 'J\'ai compris' : 'Fermer'}
+                                </button>
+                                
+                                ${emailSent ? `
+                                    <button onclick="resendVerificationEmail('${formData.email}')" 
+                                            class="w-full border-2 border-blue-600 text-blue-600 px-4 py-2.5 rounded-lg hover:bg-blue-50 transition duration-200 font-medium">
+                                        Renvoyer l'email
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Ajouter le style d'animation
+            if (!document.querySelector('#popup-animation-style')) {
+                const style = document.createElement('style');
+                style.id = 'popup-animation-style';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateY(-20px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    .animate-fade-in {
+                        animation: fadeIn 0.3s ease-out;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.insertAdjacentHTML('beforeend', popupHTML);
+        }
+
+        // Fonction pour fermer la popup
+        window.closeVerificationPopup = function() {
+            const popup = document.querySelector('.email-verification-popup');
+            if (popup) {
+                popup.remove();
+                // Optionnel: rediriger vers la page de connexion
+                // setTimeout(() => {
+                //     window.location.href = '/login.html';
+                // }, 1000);
+            }
+        }
+
+        // Fonction pour renvoyer l'email de vérification
+        window.resendVerificationEmail = async function(email) {
+            const button = document.querySelector('button[onclick*="resendVerificationEmail"]');
+            if (!button) return;
+            
+            const originalText = button.textContent;
+            
+            button.disabled = true;
+            button.textContent = 'Envoi en cours...';
+            button.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            try {
+                const response = await fetch('/api/resend-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Afficher un message de succès
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'mt-3 bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded text-sm';
+                    successMsg.textContent = '✅ Email renvoyé avec succès !';
+                    
+                    const popupContent = document.querySelector('.bg-white.p-6');
+                    if (popupContent) {
+                        const lastChild = popupContent.lastElementChild;
+                        if (lastChild && lastChild.tagName === 'DIV') {
+                            popupContent.insertBefore(successMsg, lastChild);
+                        } else {
+                            popupContent.appendChild(successMsg);
+                        }
+                        
+                        // Supprimer le message après 3 secondes
+                        setTimeout(() => successMsg.remove(), 3000);
+                    }
+                } else {
+                    // Afficher une erreur
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'mt-3 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm';
+                    errorMsg.textContent = `❌ ${result.message}`;
+                    
+                    const popupContent = document.querySelector('.bg-white.p-6');
+                    if (popupContent) {
+                        const lastChild = popupContent.lastElementChild;
+                        if (lastChild && lastChild.tagName === 'DIV') {
+                            popupContent.insertBefore(errorMsg, lastChild);
+                        } else {
+                            popupContent.appendChild(errorMsg);
+                        }
+                        
+                        // Supprimer le message après 5 secondes
+                        setTimeout(() => errorMsg.remove(), 5000);
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'mt-3 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm';
+                errorMsg.textContent = '❌ Erreur lors du renvoi de l\'email';
+                
+                const popupContent = document.querySelector('.bg-white.p-6');
+                if (popupContent) {
+                    const lastChild = popupContent.lastElementChild;
+                    if (lastChild && lastChild.tagName === 'DIV') {
+                        popupContent.insertBefore(errorMsg, lastChild);
+                    } else {
+                        popupContent.appendChild(errorMsg);
+                    }
+                    
+                    setTimeout(() => errorMsg.remove(), 5000);
+                }
+            } finally {
+                // Toujours réactiver le bouton
+                button.disabled = false;
+                button.textContent = originalText;
+                button.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // Soumission du formulaire - VERSION CORRIGÉE
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log('📝 Début de soumission du formulaire...');
+
+            // Valider tous les champs
+            const isPrenomValid = validateName(prenom, 'prenomError');
+            const isNomValid = validateName(nom, 'nomError');
+            const isPhoneValid = validatePhone();
+            const isEmailValid = validateEmail();
+            const isPasswordValid = checkPasswordStrength();
+            const isConfirmPasswordValid = validateConfirmPassword();
+            const isTermsValid = validateTerms();
+
+            console.log('✅ Résultats validation:', {
+                prenom: isPrenomValid,
+                nom: isNomValid,
+                phone: isPhoneValid,
+                email: isEmailValid,
+                password: isPasswordValid,
+                confirmPassword: isConfirmPasswordValid,
+                terms: isTermsValid,
+                termsChecked: terms.checked
+            });
+
+            // Vérifier si tout est valide
+            if (isPrenomValid && isNomValid && isPhoneValid && isEmailValid && 
+                isPasswordValid && isConfirmPasswordValid && isTermsValid) {
+                
+                // Préparer les données pour l'envoi
+                const formData = {
+                    prenom: prenom.value.trim(),
+                    nom: nom.value.trim(),
+                    countryCode: document.getElementById('countryCode').value,
+                    telephone: telephone.value.trim(),
+                    email: email.value.trim(),
+                    password: password.value,
+                    confirmPassword: confirmPassword.value,
+                    terms: document.getElementById('terms').checked // Ceci envoie true/false
+                };
+
+                console.log('📦 Données à envoyer:', formData);
+
+                try {
+                    // Désactiver le bouton pendant l'envoi
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const originalBtnText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = `
+                        <div class="flex items-center justify-center">
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Inscription en cours...
+                        </div>
+                    `;
+
+                    // Envoyer les données au serveur
+                    console.log('🔄 Envoi des données à /api/register...');
+                    const response = await fetch('/api/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    console.log('📨 Réponse du serveur reçue, statut:', response.status);
+                    const result = await response.json();
+                    console.log('📊 Résultat complet:', result);
+
+                    // Dans la fonction de soumission, après result.success
+if (result.success) {
+    // Sauvegarder l'email localement
+    localStorage.setItem('pending_email', formData.email);
+    sessionStorage.setItem('pending_email', formData.email);
+    
+    // Rediriger vers la page d'attente
+    window.location.href = `/waiting-verification?email=${encodeURIComponent(formData.email)}`;
+    
+    // Pas de réinitialisation du formulaire ici
+    // Le compte n'est pas encore créé
+} else {
+                        console.error('❌ Erreurs du serveur:', result.errors);
+                        
+                        // Afficher les erreurs du serveur
+                        if (result.errors && result.errors.length > 0) {
+                            // Supprimer les anciennes erreurs
+                            const oldErrors = form.querySelectorAll('.server-error');
+                            oldErrors.forEach(error => error.remove());
+                            
+                            // Créer un conteneur d'erreur
+                            const errorContainer = document.createElement('div');
+                            errorContainer.className = 'server-error mb-4 p-3 bg-red-50 border border-red-200 rounded-lg';
+                            errorContainer.innerHTML = `
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-red-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="font-medium text-red-800">Des erreurs sont survenues :</p>
+                                        <ul class="mt-1 text-sm text-red-600">
+                                            ${result.errors.map(error => `<li>• ${error}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Insérer l'erreur en haut du formulaire
+                            const firstElement = form.firstChild;
+                            if (firstElement) {
+                                form.insertBefore(errorContainer, firstElement);
+                            } else {
+                                form.prepend(errorContainer);
+                            }
+                            
+                            // Supprimer après 8 secondes
+                            setTimeout(() => {
+                                if (errorContainer.parentElement) {
+                                    errorContainer.remove();
+                                }
+                            }, 8000);
+                        } else {
+                            // Erreur générique
+                            alert('❌ Une erreur est survenue lors de l\'inscription. Veuillez réessayer.');
+                        }
+                    }
+
+                } catch (error) {
+                    console.error('❌ Erreur réseau lors de la soumission:', error);
+                    
+                    // Supprimer les anciennes erreurs
+                    const oldErrors = form.querySelectorAll('.network-error');
+                    oldErrors.forEach(error => error.remove());
+                    
+                    // Afficher une erreur réseau
+                    const networkError = document.createElement('div');
+                    networkError.className = 'network-error mb-4 p-3 bg-red-50 border border-red-200 rounded-lg';
+                    networkError.innerHTML = `
+                        <div class="flex items-start">
+                            <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.282 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                            <div>
+                                <p class="font-medium text-red-800">Erreur de connexion</p>
+                                <p class="text-sm text-red-600">Impossible de se connecter au serveur. Vérifiez votre connexion internet.</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Insérer en haut du formulaire
+                    const firstElement = form.firstChild;
+                    if (firstElement) {
+                        form.insertBefore(networkError, firstElement);
+                    } else {
+                        form.prepend(networkError);
+                    }
+                    
+                    // Supprimer après 5 secondes
+                    setTimeout(() => {
+                        if (networkError.parentElement) {
+                            networkError.remove();
+                        }
+                    }, 5000);
+                    
+                } finally {
+                    console.log('🔄 Réactivation du bouton de soumission');
+                    // TOUJOURS réactiver le bouton
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = "S'INSCRIRE";
+                        submitBtn.innerHTML = "S'INSCRIRE";
+                    }
+                }
+            } else {
+                console.log('❌ Validation du formulaire échouée');
+                
+                // Supprimer les anciens messages de validation
+                const oldMessages = form.querySelectorAll('.validation-error');
+                oldMessages.forEach(msg => msg.remove());
+                
+                // Afficher un message d'erreur de validation
+                const validationError = document.createElement('div');
+                validationError.className = 'validation-error mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg';
+                validationError.innerHTML = `
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-yellow-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.282 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                        <div>
+                            <p class="font-medium text-yellow-800">Formulaire incomplet</p>
+                            <p class="text-sm text-yellow-600">Veuillez corriger les erreurs dans le formulaire avant de soumettre.</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Insérer en haut du formulaire
+                const firstElement = form.firstChild;
+                if (firstElement) {
+                    form.insertBefore(validationError, firstElement);
+                } else {
+                    form.prepend(validationError);
+                }
+                
+                // Supprimer après 4 secondes
+                setTimeout(() => {
+                    if (validationError.parentElement) {
+                        validationError.remove();
+                    }
+                }, 4000);
+                
+                // Mettre en évidence les champs incorrects
+                if (!isPrenomValid) prenom.focus();
+                else if (!isNomValid) nom.focus();
+                else if (!isPhoneValid) telephone.focus();
+                else if (!isEmailValid) email.focus();
+                else if (!isPasswordValid) password.focus();
+                else if (!isConfirmPasswordValid) confirmPassword.focus();
+                else if (!isTermsValid) terms.focus();
+            }
+        });
+
+        // Ajout de la vérification en temps réel avancée
+        const inputs = [prenom, nom, telephone, email, password, confirmPassword];
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.value.trim() !== '') {
+                    this.classList.add('bg-blue-50');
+                    setTimeout(() => this.classList.remove('bg-blue-50'), 1000);
+                }
+            });
+            
+            // Validation en temps réel améliorée
+            input.addEventListener('input', function() {
+                // Enlever les classes d'erreur lors de la saisie
+                this.classList.remove('border-red-500');
+            });
+        });
+
+        // Focus sur le premier champ au chargement
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                prenom.focus();
+            }, 100);
+        });
+
+        // Fonction pour déboguer (à enlever en production)
+        window.debugForm = function() {
+            console.log('=== DEBUG FORM ===');
+            console.log('Prénom:', prenom.value);
+            console.log('Nom:', nom.value);
+            console.log('Téléphone:', telephone.value);
+            console.log('Email:', email.value);
+            console.log('Password length:', password.value.length);
+            console.log('Confirm Password:', confirmPassword.value);
+            console.log('Terms checked:', terms.checked);
+            console.log('==================');
+        };
+
+    </script>
+
+</body>
+</html>

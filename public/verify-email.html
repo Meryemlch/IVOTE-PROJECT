@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vérification Email - iVOTE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+        <div class="text-center mb-6">
+            <div class="bg-blue-600 text-white font-bold rounded-full w-16 h-16 flex items-center justify-center mx-auto text-2xl mb-4">
+                iVOTE
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800">Vérification d'email</h1>
+        </div>
+
+        <div id="messageContainer" class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" id="spinner"></div>
+            <p class="text-gray-600">Vérification en cours...</p>
+        </div>
+
+        <div class="mt-6 text-center text-sm text-gray-500">
+            <p>Redirection automatique dans <span id="countdown">5</span> secondes</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const messageContainer = document.getElementById('messageContainer');
+            const spinner = document.getElementById('spinner');
+            const countdownElement = document.getElementById('countdown');
+
+            if (!token) {
+                messageContainer.innerHTML = `
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        <strong class="font-bold">Erreur !</strong>
+                        <span class="block sm:inline"> Token manquant dans l'URL.</span>
+                    </div>
+                    <a href="/" class="mt-4 inline-block text-blue-600 hover:underline">Retour à l'inscription</a>
+                `;
+                spinner.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/verify-email?token=${token}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    messageContainer.innerHTML = `
+                        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                            <strong class="font-bold">✅ Succès !</strong>
+                            <span class="block sm:inline"> ${result.message}</span>
+                        </div>
+                        <p class="mt-4 text-gray-600">Bienvenue ${result.user.prenom} !</p>
+                        <a href="/verification-success" class="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                            Continuer vers iVOTE
+                        </a>
+                    `;
+                } else {
+                    messageContainer.innerHTML = `
+                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                            <strong class="font-bold">❌ Erreur</strong>
+                            <span class="block sm:inline"> ${result.message}</span>
+                        </div>
+                        <div class="mt-4 space-y-2">
+                            <a href="/" class="block text-blue-600 hover:underline">Retour à l'inscription</a>
+                            <button onclick="resendVerification('${result.user?.email || ''}')" 
+                                    class="text-blue-600 hover:underline">
+                                Renvoyer l'email de vérification
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                messageContainer.innerHTML = `
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        <strong class="font-bold">Erreur de connexion</strong>
+                        <span class="block sm:inline"> Impossible de vérifier l'email. Veuillez réessayer.</span>
+                    </div>
+                `;
+            } finally {
+                spinner.style.display = 'none';
+            }
+
+            // Compte à rebours
+            let countdown = 5;
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                countdownElement.textContent = countdown;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    window.location.href = '/verification-success';
+                }
+            }, 1000);
+        });
+
+        async function resendVerification(email) {
+            if (!email) {
+                email = prompt('Veuillez entrer votre email:');
+                if (!email) return;
+            }
+
+            try {
+                const response = await fetch('/api/resend-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                
+                const result = await response.json();
+                alert(result.message);
+                
+                if (result.success) {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                alert('Erreur lors du renvoi de l\'email');
+            }
+        }
+    </script>
+</body>
+</html>
