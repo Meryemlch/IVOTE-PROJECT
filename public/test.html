@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iVOTE - Plateforme de Vote Sécurisée</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        /* Styles généraux */
+        body {
+            font-family: 'Poppins', sans-serif;
+            cursor: none; /* Cache le curseur par défaut */
+            overflow-x: hidden;
+        }
+        
+        /* Curseur personnalisé */
+        .custom-cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(70, 99, 230, 0.3);
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.1s ease;
+            transform: translate(-50%, -50%);
+            mix-blend-mode: multiply;
+        }
+        
+        .cursor-dot {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4663e6;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            transition: width 0.2s, height 0.2s;
+        }
+        
+        /* Effet de hover sur les éléments interactifs */
+        a, button, .feature-card, .logo-badge, .hover-effect, .nav-link, .social-btn {
+            cursor: none !important; /* Force l'utilisation du curseur personnalisé */
+        }
+        
+        /* Effet de hover sur le curseur */
+        a:hover ~ .custom-cursor,
+        button:hover ~ .custom-cursor,
+        .feature-card:hover ~ .custom-cursor,
+        .logo-badge:hover ~ .custom-cursor,
+        .nav-link:hover ~ .custom-cursor,
+        .social-btn:hover ~ .custom-cursor {
+            transform: translate(-50%, -50%) scale(1.5);
+            background: rgba(70, 99, 230, 0.5);
+        }
+        
+        a:hover ~ .cursor-dot,
+        button:hover ~ .cursor-dot,
+        .feature-card:hover ~ .cursor-dot,
+        .logo-badge:hover ~ .cursor-dot,
+        .nav-link:hover ~ .cursor-dot,
+        .social-btn:hover ~ .cursor-dot {
+            width: 10px;
+            height: 10px;
+            background: #2a47d8;
+        }
+        
+        /* Styles pour la navigation */
+        .navbar {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .navbar-scrolled {
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12);
+        }
+        
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #4663e6, #2a47d8);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .nav-link.active::after {
+            width: 100%;
+        }
+        
+        .mobile-menu {
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+        
+        /* Styles supplémentaires */
+        .gradient-bg {
+            background: linear-gradient(135deg, #f4f7ff 0%, #e8edff 100%);
+        }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #4663e6 0%, #6a82fb 50%, #4f6af1 100%);
+        }
+        
+        .logo-badge {
+            background: linear-gradient(135deg, #4663e6 0%, #2a47d8 100%);
+            box-shadow: 0 4px 12px rgba(70, 99, 230, 0.3);
+        }
+        
+        .feature-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+        
+        .social-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .social-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 1s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsive - Afficher le curseur par défaut sur mobile */
+        @media (max-width: 768px) {
+            body {
+                cursor: auto;
+            }
+            
+            .custom-cursor,
+            .cursor-dot {
+                display: none;
+            }
+            
+            a, button, .feature-card, .logo-badge, .hover-effect, .nav-link, .social-btn {
+                cursor: pointer !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen relative overflow-x-hidden">
+
+    <!-- Curseur personnalisé -->
+    <div class="custom-cursor"></div>
+    <div class="cursor-dot"></div>
+
+    <!-- Navigation principale -->
+    <nav class="navbar fixed top-0 left-0 w-full z-50 py-4">
+        <div class="container mx-auto px-4 md:px-8">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center space-x-2">
+                    <div class="logo-badge text-white font-bold rounded-full px-5 py-2 text-lg shadow-lg flex items-center space-x-2 hover-effect">
+                        <i class="fas fa-vote-yea"></i>
+                        <span class="hidden md:inline">iVOTE</span>
+                    </div>
+                    <span class="text-lg font-bold text-gray-800 hidden md:inline">iVOTE</span>
+                </div>
+
+                <!-- Navigation desktop -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm active">Accueil</a>
+                    <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm">À propos</a>
+                    <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm">Fonctionnalités</a>
+                    <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm">Sécurité</a>
+                    <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm">Tarifs</a>
+                    <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm">Contact</a>
+                    
+                    <div class="flex items-center space-x-4 ml-4">
+                        <a href="#" onclick="showLoginModal()" class="text-blue-600 hover:text-blue-700 font-medium text-sm px-4 py-2 rounded-full hover:bg-blue-50 transition">
+                            Se connecter
+                        </a>
+                        <a href="#auth-section" class="bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-6 py-2 rounded-full shadow-md hover:shadow-lg transition">
+                            S'inscrire
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Menu mobile burger -->
+                <button id="mobile-menu-button" class="md:hidden text-gray-700 hover:text-blue-600">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Menu mobile -->
+        <div id="mobile-menu" class="mobile-menu md:hidden fixed top-0 right-0 w-64 h-full bg-white shadow-xl z-50 p-6">
+            <div class="flex justify-between items-center mb-8">
+                <div class="logo-badge text-white font-bold rounded-full px-5 py-2 text-lg shadow-lg flex items-center space-x-2">
+                    <i class="fas fa-vote-yea"></i>
+                    <span>iVOTE</span>
+                </div>
+                <button id="close-mobile-menu" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block active">Accueil</a>
+                <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block">À propos</a>
+                <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block">Fonctionnalités</a>
+                <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block">Sécurité</a>
+                <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block">Tarifs</a>
+                <a href="#" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block">Contact</a>
+                
+                <div class="pt-6 border-t border-gray-100 space-y-4">
+                    <a href="#auth-section" class="block text-center bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-6 py-3 rounded-full shadow-md hover:shadow-lg transition">
+                        S'inscrire gratuitement
+                    </a>
+                    <a href="#" onclick="showLoginModal()" class="block text-center text-blue-600 hover:text-blue-700 font-medium text-sm px-6 py-3 rounded-full border border-blue-200 hover:bg-blue-50 transition">
+                        Se connecter
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Info contact mobile -->
+            <div class="absolute bottom-6 left-6 right-6">
+                <div class="text-center text-gray-500 text-xs">
+                    <p>support@ivote.com</p>
+                    <p class="mt-1">+33 1 23 45 67 89</p>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient text-white overflow-hidden pt-24">
+        <div class="container mx-auto px-4 py-12 md:py-20 relative">
+            <!-- Éléments décoratifs -->
+            <div class="absolute -left-24 top-1/4 w-48 h-48 bg-gradient-to-br from-blue-300 to-purple-300 opacity-20 rounded-full blur-3xl"></div>
+            <div class="absolute -right-24 bottom-1/4 w-48 h-48 bg-gradient-to-tr from-blue-400 to-cyan-300 opacity-20 rounded-full blur-3xl"></div>
+            
+            <div class="flex flex-col md:flex-row items-center relative z-10">
+                <div class="md:w-1/2 mb-10 md:mb-0 fade-in">
+                    <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+                        Votez en toute <span class="text-yellow-300">sécurité</span> avec iVOTE
+                    </h1>
+                    <p class="text-xl mb-8 text-blue-100">
+                        La plateforme de vote numérique qui garantit la transparence, 
+                        la confidentialité et l'intégrité de chaque scrutin.
+                    </p>
+                    <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                        <a href="#auth-section" class="bg-white text-blue-700 hover:bg-blue-50 px-6 py-3 rounded-full font-bold text-lg shadow-lg transition duration-200 text-center">
+                            Commencer maintenant
+                        </a>
+                        <a href="#features" class="border-2 border-white text-white hover:bg-white/10 px-6 py-3 rounded-full font-bold text-lg transition duration-200 text-center">
+                            En savoir plus
+                        </a>
+                    </div>
+                </div>
+                <div class="md:w-1/2 relative">
+                    <div class="relative z-10 animate-float">
+                        <img src="images/undraw_enter-password_1kl4.svg" alt="Vote en ligne" class="w-full max-w-lg mx-auto hover-effect">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-12 fade-in">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+                    Pourquoi choisir iVOTE ?
+                </h2>
+                <p class="text-gray-600 text-lg max-w-2xl mx-auto">
+                    Une solution complète pour des élections et consultations transparentes et sécurisées
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="feature-card bg-gray-50 p-8 rounded-2xl shadow-sm border border-gray-100 hover-effect">
+                    <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6 hover-effect">
+                        <i class="fas fa-shield-alt text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3 hover-effect">Sécurité maximale</h3>
+                    <p class="text-gray-600 hover-effect">
+                        Chiffrement de bout en bout, authentification forte et auditabilité complète pour garantir l'intégrité des votes.
+                    </p>
+                </div>
+                
+                <div class="feature-card bg-gray-50 p-8 rounded-2xl shadow-sm border border-gray-100 hover-effect">
+                    <div class="w-14 h-14 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mb-6 hover-effect">
+                        <i class="fas fa-user-check text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3 hover-effect">Accessibilité</h3>
+                    <p class="text-gray-600 hover-effect">
+                        Votez depuis n'importe où, sur n'importe quel appareil. Une interface simple et intuitive pour tous.
+                    </p>
+                </div>
+                
+                <div class="feature-card bg-gray-50 p-8 rounded-2xl shadow-sm border border-gray-100 hover-effect">
+                    <div class="w-14 h-14 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-6 hover-effect">
+                        <i class="fas fa-chart-bar text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3 hover-effect">Transparence</h3>
+                    <p class="text-gray-600 hover-effect">
+                        Résultats vérifiables et traçabilité complète sans compromettre la confidentialité des votes.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Authentication Section -->
+    <section id="auth-section" class="py-16 bg-gradient-to-b from-blue-50 to-indigo-50">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-12 fade-in">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+                        Rejoignez iVOTE aujourd'hui
+                    </h2>
+                    <p class="text-gray-600 text-lg">
+                        Créez votre compte pour participer aux votes et consultations
+                    </p>
+                </div>
+                
+                <!-- Carte principale d'authentification -->
+                <div class="bg-white rounded-3xl shadow-2xl overflow-hidden relative z-10 flex flex-col lg:flex-row border border-gray-100 hover-effect">
+                    
+                    <!-- SECTION GAUCHE - ILLUSTRATION -->
+                    <div class="lg:w-2/5 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 flex flex-col items-center justify-center relative">
+                        <!-- Badge "Connexion Sécurisée" -->
+                        <div class="absolute top-6 left-6 bg-white px-4 py-2 rounded-full shadow-md flex items-center space-x-2 hover-effect">
+                            <i class="fas fa-lock text-blue-600"></i>
+                            <span class="text-sm font-semibold text-gray-800">Connexion Sécurisée</span>
+                        </div>
+                        
+                        <!-- Image de connexion -->
+                        <div class="w-full max-w-sm mx-auto">
+                            <img src="images/undraw_connected-world_anke.svg" alt="Connexion sécurisée" class="w-full h-auto pulse-animation hover-effect">
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="mt-8 text-center max-w-sm">
+                            <h2 class="text-xl font-bold text-gray-800 mb-3 hover-effect">Une communauté qui compte</h2>
+                            <p class="text-gray-600 text-sm leading-relaxed hover-effect">
+                                Rejoignez des milliers d'utilisateurs qui font confiance à iVOTE pour leurs votes et consultations.
+                            </p>
+                            
+                            <!-- Points forts -->
+                            <div class="grid grid-cols-2 gap-3 mt-6">
+                                <div class="bg-white p-3 rounded-xl shadow-sm feature-card">
+                                    <i class="fas fa-shield-alt text-blue-600 text-lg mb-2"></i>
+                                    <p class="text-xs font-medium text-gray-800">Sécurité SSL</p>
+                                </div>
+                                <div class="bg-white p-3 rounded-xl shadow-sm feature-card">
+                                    <i class="fas fa-user-shield text-green-600 text-lg mb-2"></i>
+                                    <p class="text-xs font-medium text-gray-800">Protection 2FA</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- SECTION DROITE - OPTIONS D'AUTHENTIFICATION -->
+                    <div class="lg:w-3/5 p-8 md:p-12">
+                        <!-- En-tête avec logo -->
+                        <div class="flex flex-col items-center mb-8">
+                            <div class="logo-badge text-white font-bold rounded-full px-8 py-3 text-xl shadow-lg mb-4 flex items-center space-x-2 hover-effect">
+                                <i class="fas fa-vote-yea"></i>
+                                <span>iVOTE</span>
+                            </div>
+                            
+                            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2 text-center hover-effect">Créer un compte</h1>
+                            <p class="text-gray-500 text-sm text-center max-w-md hover-effect">Choisissez votre méthode de connexion préférée</p>
+                            
+                            <!-- Indicateur de sécurité -->
+                            <div class="mt-4 flex items-center space-x-2 bg-green-50 px-4 py-2 rounded-full hover-effect">
+                                <i class="fas fa-lock text-green-600"></i>
+                                <span class="text-sm font-medium text-green-700">Authentification 100% sécurisée</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Options de connexion sociale -->
+                        <div class="space-y-4 mb-8">
+                            <button onclick="signInWithGoogle()" class="social-btn w-full flex items-center justify-center space-x-3 bg-white border border-gray-300 hover:border-red-500 hover:bg-red-50 text-gray-800 font-medium py-3.5 px-4 rounded-xl transition duration-200 hover-effect">
+                                <i class="fab fa-google text-red-500 text-xl"></i>
+                                <span class="font-medium">Continuer avec Google</span>
+                            </button>
+                            
+                            <button onclick="signInWithGithub()" class="social-btn w-full flex items-center justify-center space-x-3 bg-white border border-gray-300 hover:border-gray-800 hover:bg-gray-50 text-gray-800 font-medium py-3.5 px-4 rounded-xl transition duration-200 hover-effect">
+                                <i class="fab fa-github text-gray-800 text-xl"></i>
+                                <span class="font-medium">Continuer avec GitHub</span>
+                            </button>
+                            
+                            <button onclick="signInWithLinkedIn()" class="social-btn w-full flex items-center justify-center space-x-3 bg-white border border-gray-300 hover:border-blue-700 hover:bg-blue-50 text-gray-800 font-medium py-3.5 px-4 rounded-xl transition duration-200 hover-effect">
+                                <i class="fab fa-linkedin text-blue-700 text-xl"></i>
+                                <span class="font-medium">Continuer avec LinkedIn</span>
+                            </button>
+                            
+                            <button onclick="signInWithFacebook()" class="social-btn w-full flex items-center justify-center space-x-3 bg-white border border-gray-300 hover:border-blue-600 hover:bg-blue-50 text-gray-800 font-medium py-3.5 px-4 rounded-xl transition duration-200 hover-effect">
+                                <i class="fab fa-facebook text-blue-600 text-xl"></i>
+                                <span class="font-medium">Continuer avec Facebook</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Divider -->
+                        <div class="flex items-center my-8">
+                            <div class="flex-grow border-t border-gray-300"></div>
+                            <div class="mx-4 text-gray-500 font-medium hover-effect">Ou</div>
+                            <div class="flex-grow border-t border-gray-300"></div>
+                        </div>
+                        
+                        <!-- Option email/mot de passe -->
+                        <div class="text-center">
+                            <button onclick="redirectToSignUp()" class="social-btn w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:opacity-90 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition duration-200 flex items-center justify-center space-x-3 hover-effect">
+                                <i class="fas fa-envelope text-xl"></i>
+                                <span class="font-medium">S'inscrire avec email et mot de passe</span>
+                            </button>
+                            
+                            <p class="text-gray-600 text-sm mt-4 hover-effect">
+                                En vous inscrivant, vous acceptez nos 
+                                <a href="#" class="text-blue-600 hover:text-blue-800 font-medium hover-effect">Conditions d'utilisation</a> 
+                                et notre 
+                                <a href="#" class="text-blue-600 hover:text-blue-800 font-medium hover-effect">Politique de confidentialité</a>.
+                            </p>
+                            
+                            <div class="mt-8 pt-6 border-t border-gray-200">
+                                <p class="text-gray-600 hover-effect">
+                                    Vous avez déjà un compte ?
+                                    <a href="#" class="text-blue-600 hover:text-blue-800 font-medium hover-effect" onclick="showLoginModal()">
+                                        Se connecter
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Badges de sécurité -->
+                <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center feature-card">
+                        <i class="fas fa-lock text-green-500 text-2xl mb-2"></i>
+                        <p class="text-sm font-medium text-gray-700 hover-effect">Chiffrement SSL 256-bit</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center feature-card">
+                        <i class="fas fa-user-shield text-blue-500 text-2xl mb-2"></i>
+                        <p class="text-sm font-medium text-gray-700 hover-effect">Authentification 2FA</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center feature-card">
+                        <i class="fas fa-shield-alt text-purple-500 text-2xl mb-2"></i>
+                        <p class="text-sm font-medium text-gray-700 hover-effect">Protection des données</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center feature-card">
+                        <i class="fas fa-check-circle text-yellow-500 text-2xl mb-2"></i>
+                        <p class="text-sm font-medium text-gray-700 hover-effect">Audit indépendant</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-8">
+        <div class="container mx-auto px-4 md:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Colonne 1: Logo et description -->
+                <div>
+                    <div class="logo-badge text-white font-bold rounded-full px-5 py-2 text-lg inline-flex items-center space-x-2 mb-4 hover-effect">
+                        <i class="fas fa-vote-yea"></i>
+                        <span>iVOTE</span>
+                    </div>
+                    <p class="text-gray-600 text-sm hover-effect">
+                        Plateforme de vote en ligne sécurisée pour la démocratie numérique moderne.
+                    </p>
+                    <div class="flex space-x-4 mt-4">
+                        <a href="#" class="text-gray-400 hover:text-blue-600 hover-effect">
+                            <i class="fab fa-twitter text-lg"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-600 hover-effect">
+                            <i class="fab fa-facebook-f text-lg"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-600 hover-effect">
+                            <i class="fab fa-linkedin-in text-lg"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-600 hover-effect">
+                            <i class="fab fa-github text-lg"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Colonne 2: Liens rapides -->
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg mb-4 hover-effect">Liens rapides</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Accueil</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">À propos</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Fonctionnalités</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Sécurité</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Tarifs</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Colonne 3: Légal -->
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg mb-4 hover-effect">Légal</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Conditions d'utilisation</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Politique de confidentialité</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Cookies</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Mentions légales</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Colonne 4: Contact -->
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg mb-4 hover-effect">Contact</h3>
+                    <ul class="space-y-2">
+                        <li class="text-gray-600 text-sm flex items-center hover-effect">
+                            <i class="fas fa-envelope mr-2 text-blue-600"></i>
+                            support@ivote.com
+                        </li>
+                        <li class="text-gray-600 text-sm flex items-center hover-effect">
+                            <i class="fas fa-phone mr-2 text-blue-600"></i>
+                            +33 1 23 45 67 89
+                        </li>
+                        <li class="text-gray-600 text-sm flex items-center hover-effect">
+                            <i class="fas fa-map-marker-alt mr-2 text-blue-600"></i>
+                            123 Rue de la Démocratie, Paris
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Copyright -->
+            <div class="border-t border-gray-200 mt-8 pt-6 text-center">
+                <p class="text-gray-400 text-sm hover-effect">© 2023 iVOTE. Tous droits réservés. <span class="text-blue-500 font-medium">Démocratie numérique sécurisée</span></p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-2xl max-w-md w-full">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-800 hover-effect">Se connecter</h3>
+                <button onclick="hideLoginModal()" class="text-gray-400 hover:text-gray-600 hover-effect">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <button onclick="signInWithGoogle()" class="social-btn w-full flex items-center justify-center space-x-3 bg-white border border-gray-300 hover:border-red-500 hover:bg-red-50 text-gray-800 font-medium py-3 px-4 rounded-xl hover-effect">
+                    <i class="fab fa-google text-red-500"></i>
+                    <span>Google</span>
+                </button>
+                <button onclick="signInWithGithub()" class="social-btn w-full flex items-center justify-center space-x-3 bg-white border border-gray-300 hover:border-gray-800 hover:bg-gray-50 text-gray-800 font-medium py-3 px-4 rounded-xl hover-effect">
+                    <i class="fab fa-github"></i>
+                    <span>GitHub</span>
+                </button>
+                <div class="text-center my-4">
+                    <button onclick="redirectToEmailLogin()" class="text-blue-600 hover:text-blue-800 font-medium hover-effect">
+                        Se connecter avec email et mot de passe
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript pour le curseur personnalisé
+        document.addEventListener('DOMContentLoaded', function() {
+            const cursor = document.querySelector('.custom-cursor');
+            const cursorDot = document.querySelector('.cursor-dot');
+            
+            // Vérifie si on est sur desktop (pour désactiver sur mobile)
+            if (window.innerWidth > 768) {
+                // Suivre le mouvement de la souris
+                document.addEventListener('mousemove', function(e) {
+                    cursor.style.left = e.clientX + 'px';
+                    cursor.style.top = e.clientY + 'px';
+                    
+                    cursorDot.style.left = e.clientX + 'px';
+                    cursorDot.style.top = e.clientY + 'px';
+                });
+                
+                // Effets de hover
+                const hoverElements = document.querySelectorAll('a, button, .feature-card, .logo-badge, .hover-effect, .nav-link, .social-btn');
+                
+                hoverElements.forEach(element => {
+                    element.addEventListener('mouseenter', function() {
+                        cursor.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                        cursor.style.background = 'rgba(70, 99, 230, 0.5)';
+                        cursorDot.style.width = '10px';
+                        cursorDot.style.height = '10px';
+                        cursorDot.style.background = '#2a47d8';
+                    });
+                    
+                    element.addEventListener('mouseleave', function() {
+                        cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                        cursor.style.background = 'rgba(70, 99, 230, 0.3)';
+                        cursorDot.style.width = '6px';
+                        cursorDot.style.height = '6px';
+                        cursorDot.style.background = '#4663e6';
+                    });
+                });
+                
+                // Effet de clic
+                document.addEventListener('mousedown', function() {
+                    cursor.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                    cursorDot.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                });
+                
+                document.addEventListener('mouseup', function() {
+                    cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                    cursorDot.style.transform = 'translate(-50%, -50%) scale(1)';
+                });
+                
+                // Cacher le curseur quand la souris quitte la fenêtre
+                document.addEventListener('mouseout', function(e) {
+                    if (e.clientY <= 0 || e.clientX <= 0 || 
+                        (e.clientX >= window.innerWidth || e.clientY >= window.innerHeight)) {
+                        cursor.style.opacity = '0';
+                        cursorDot.style.opacity = '0';
+                    }
+                });
+                
+                // Réafficher le curseur quand la souris revient
+                document.addEventListener('mouseover', function() {
+                    cursor.style.opacity = '1';
+                    cursorDot.style.opacity = '1';
+                });
+            }
+            
+            // Animation d'entrée
+            setTimeout(() => {
+                cursor.style.transition = 'transform 0.1s ease, background 0.3s ease';
+                cursorDot.style.transition = 'width 0.2s, height 0.2s, background 0.3s ease';
+            }, 100);
+            
+            // Navigation scroll effect
+            window.addEventListener('scroll', function() {
+                const navbar = document.querySelector('.navbar');
+                if (window.scrollY > 50) {
+                    navbar.classList.add('navbar-scrolled');
+                } else {
+                    navbar.classList.remove('navbar-scrolled');
+                }
+            });
+            
+            // Menu mobile
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const closeMobileMenu = document.getElementById('close-mobile-menu');
+            
+            mobileMenuButton.addEventListener('click', function() {
+                mobileMenu.classList.add('open');
+                document.body.style.overflow = 'hidden';
+            });
+            
+            closeMobileMenu.addEventListener('click', function() {
+                mobileMenu.classList.remove('open');
+                document.body.style.overflow = 'auto';
+            });
+            
+            // Fermer le menu mobile en cliquant à l'extérieur
+            document.addEventListener('click', function(event) {
+                if (!mobileMenu.contains(event.target) && !mobileMenuButton.contains(event.target)) {
+                    mobileMenu.classList.remove('open');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            
+            // Fermer le menu mobile en appuyant sur Echap
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    mobileMenu.classList.remove('open');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            
+            // Activer le lien actif dans la navigation
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Fermer le menu mobile si ouvert
+                    if (window.innerWidth < 768) {
+                        mobileMenu.classList.remove('open');
+                        document.body.style.overflow = 'auto';
+                    }
+                });
+            });
+            
+            // Animation au défilement
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('fade-in');
+                    }
+                });
+            }, observerOptions);
+            
+            // Observer les cartes de fonctionnalités
+            document.querySelectorAll('.feature-card').forEach(card => {
+                observer.observe(card);
+            });
+        });
+        
+        // Adapter le curseur au redimensionnement de la fenêtre
+        window.addEventListener('resize', function() {
+            const cursor = document.querySelector('.custom-cursor');
+            const cursorDot = document.querySelector('.cursor-dot');
+            
+            if (window.innerWidth <= 768) {
+                cursor.style.display = 'none';
+                cursorDot.style.display = 'none';
+            } else {
+                cursor.style.display = 'block';
+                cursorDot.style.display = 'block';
+            }
+        });
+        
+        // Fonctions d'authentification
+        function signInWithGoogle() {
+            showLoading('Connexion avec Google...');
+            // Simulate API call
+            setTimeout(() => {
+                hideLoading();
+                alert('Cette fonctionnalité sera bientôt disponible ! Pour le moment, veuillez vous inscrire avec email/mot de passe.');
+            }, 1000);
+        }
+        
+        function signInWithGithub() {
+            showLoading('Connexion avec GitHub...');
+            setTimeout(() => {
+                hideLoading();
+                alert('Cette fonctionnalité sera bientôt disponible ! Pour le moment, veuillez vous inscrire avec email/mot de passe.');
+            }, 1000);
+        }
+        
+        function signInWithLinkedIn() {
+            showLoading('Connexion avec LinkedIn...');
+            setTimeout(() => {
+                hideLoading();
+                alert('Cette fonctionnalité sera bientôt disponible ! Pour le moment, veuillez vous inscrire avec email/mot de passe.');
+            }, 1000);
+        }
+        
+        function signInWithFacebook() {
+            showLoading('Connexion avec Facebook...');
+            setTimeout(() => {
+                hideLoading();
+                alert('Cette fonctionnalité sera bientôt disponible ! Pour le moment, veuillez vous inscrire avec email/mot de passe.');
+            }, 1000);
+        }
+        
+        // Rediriger vers la page d'inscription
+        function redirectToSignUp() {
+            showLoading('Redirection vers la page d\'inscription...');
+            setTimeout(() => {
+                window.location.href = 'inscription.html';
+            }, 800);
+        }
+        
+        function redirectToEmailLogin() {
+            // Pour l'instant, rediriger vers la même page d'inscription
+            window.location.href = 'inscription.html';
+        }
+        
+        // Login modal functions
+        function showLoginModal() {
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('loginModal').classList.add('flex');
+        }
+        
+        function hideLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginModal').classList.remove('flex');
+        }
+        
+        // Loading overlay
+        function showLoading(message) {
+            // Remove existing loader
+            const existingLoader = document.getElementById('loadingOverlay');
+            if (existingLoader) existingLoader.remove();
+            
+            const loaderHTML = `
+                <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50">
+                    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
+                    <p class="text-white text-lg font-medium">${message}</p>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', loaderHTML);
+        }
+        
+        function hideLoading() {
+            const loader = document.getElementById('loadingOverlay');
+            if (loader) loader.remove();
+        }
+        
+        // Fermer la modal en cliquant à l'extérieur
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('loginModal');
+            if (event.target === modal) {
+                hideLoginModal();
+            }
+        });
+        
+        // Fermer la modal avec Echap
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                hideLoginModal();
+            }
+        });
+    </script>
+</body>
+</html>

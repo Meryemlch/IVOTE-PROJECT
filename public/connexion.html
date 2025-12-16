@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iVOTE - Login</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+</style>
+</head>
+
+<body class="bg-[#f4f7ff] flex items-center justify-center min-h-screen font-sans relative overflow-hidden">
+
+    <!-- DECORATION GAUCHE -->
+    <div class="absolute left-0 top-0 h-full w-24 bg-gradient-to-b from-blue-400 to-blue-700 opacity-20 rounded-r-full blur-3xl"></div>
+
+    <!-- DECORATION DROITE -->
+    <div class="absolute right-0 top-0 h-full w-24 bg-gradient-to-b from-blue-400 to-blue-700 opacity-20 rounded-l-full blur-3xl"></div>
+
+    <div class="bg-white w-full max-w-5xl rounded-2xl shadow-xl p-4 relative z-10 flex flex-col md:flex-row">
+
+        <!-- SECTION GAUCHE - IMAGE -->
+        <div class="md:w-1/2 flex items-center justify-center p-4">
+            <div class="w-full max-w-xs text-center">
+                <img src="images/undraw_online-survey_xq2g copy.svg" alt="Enquête en ligne" class="w-full h-auto max-h-48 mx-auto">
+                <div class="mt-2">
+                    <h2 class="text-base font-bold text-gray-800">Votez en toute sécurité</h2>
+                    <p class="text-gray-600 mt-1 text-xs">Notre système garantit la confidentialité et l'intégrité de votre vote.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION DROITE - FORMULAIRE LOGIN -->
+        <div class="md:w-1/2 p-4 text-center">
+
+            <div class="flex justify-center mb-3">
+                <div class="bg-[#4663e6] text-white font-bold rounded-full px-6 py-1.5 text-lg shadow">iVOTE</div>
+            </div>
+
+            <h1 class="text-xl font-bold text-gray-800 mb-1">Bienvenue !</h1>
+            <p class="text-gray-500 text-xs mb-4">Veuillez vous connecter pour voter en toute sécurité.</p>
+
+            <form id="loginForm" class="space-y-2">
+
+                <!-- VOTER ID -->
+                <div class="text-left relative">
+                    <label class="text-gray-700 font-semibold text-xs">Adresse mail</label>
+                    <div class="relative mt-1">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A9 9 0 1112 21a9 9 0 01-6.879-3.196z" />
+                            </svg>
+                        </span>
+                        <input type="email" id="email" placeholder="Adresse mail" class="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- PASSWORD -->
+                <div class="text-left relative">
+                    <label class="text-gray-700 font-semibold text-xs">Mot de passe</label>
+                    <div class="relative mt-1">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c-3.866 0-7 2.239-7 5s3.134 5 7 5 7-2.239 7-5-3.134-5-7-5z"/>
+                              <circle cx="12" cy="16" r="2" stroke-width="2"/>
+                            </svg>
+                        </span>
+                        <input type="password" id="password" placeholder="Mot de passe" class="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        <span id="showPasswordBtn" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- REMEMBER & FORGOT -->
+                <div class="flex items-center justify-between text-xs">
+                    <label class="flex items-center space-x-1 text-gray-700">
+                        <input type="checkbox" id="remember" class="w-3 h-3">
+                        <span>Se souvenir de moi</span>
+                    </label>
+                    <a href="#" id="forgotLink" class="text-blue-600 font-semibold">Oublié?</a>
+                </div>
+
+                <!-- LOGIN BUTTON -->
+                <button type="submit" id="loginButton" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 rounded-lg shadow hover:opacity-90 text-sm font-semibold">
+                    SE CONNECTER
+                </button>
+
+            </form>
+
+            
+            <div class="mt-1 text-gray-600 text-xs">
+                Vous avez pas un compte?
+                <a href="#" id="signupLink" class="text-blue-700 font-semibold">Inscrivez vous ici</a>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Modal Mot de passe oublié (version améliorée) -->
+    <div id="forgotPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-md animate-fade-in">
+            
+            <!-- En-tête -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 text-center">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="bg-white text-blue-600 font-bold rounded-full px-4 py-2 text-lg inline-flex items-center justify-center">
+                        <i class="fas fa-vote-yea mr-2"></i>
+                        <span>iVOTE</span>
+                    </div>
+                    <button onclick="closeForgotPasswordModal()" class="text-white hover:text-blue-200">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <h2 class="text-xl font-bold mb-2">Mot de passe oublié</h2>
+                <p class="text-blue-100 text-sm">Entrez votre email pour recevoir un lien de réinitialisation</p>
+            </div>
+            
+            <!-- Formulaire -->
+            <div class="p-6">
+                <form id="forgotPasswordForm" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-semibold mb-2" for="resetEmail">
+                            Adresse email
+                        </label>
+                        <div class="relative">
+                            <input type="email" 
+                                   id="resetEmail" 
+                                   placeholder="votre@email.com"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition pl-10"
+                                   required>
+                            <i class="fas fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Message -->
+                    <div id="resetMessage" class="hidden p-3 rounded-lg text-sm"></div>
+                    
+                    <!-- Boutons -->
+                    <div class="flex space-x-3 pt-2">
+                        <button type="button" onclick="closeForgotPasswordModal()" class="flex-1 px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition">
+                            Annuler
+                        </button>
+                        <button type="submit" id="sendResetBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition">
+                            <i class="fas fa-paper-plane mr-2"></i>
+                            Envoyer le lien
+                        </button>
+                    </div>
+                    
+                    <!-- Information -->
+                    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-blue-700 text-xs">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Un lien de réinitialisation vous sera envoyé par email. Il sera valide pendant 1 heure.
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Récupérer les éléments du formulaire
+        const loginForm = document.getElementById('loginForm');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const rememberCheckbox = document.getElementById('remember');
+        const forgotLink = document.getElementById('forgotLink');
+        const showPasswordBtn = document.getElementById('showPasswordBtn');
+        const loginButton = document.getElementById('loginButton');
+        const signupLink = document.getElementById('signupLink');
+        const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+        const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+        const resetEmailInput = document.getElementById('resetEmail');
+        const resetMessageDiv = document.getElementById('resetMessage');
+        const sendResetBtn = document.getElementById('sendResetBtn');
+
+        // Clé pour le stockage local (avec chiffrement basique)
+        const STORAGE_KEY = 'ivote_remember_me';
+        const PASSWORD_STORAGE_KEY = 'ivote_password';
+
+        // Fonction pour chiffrer/déchiffrer basique (NE PAS UTILISER EN PRODUCTION)
+        // En production, utilisez une bibliothèque comme CryptoJS ou le Web Crypto API
+        function simpleEncrypt(text) {
+            // Chiffrement basique (rotation des caractères)
+            return btoa(unescape(encodeURIComponent(text + '_ivote_salt_')));
+        }
+
+        function simpleDecrypt(encrypted) {
+            try {
+                const decoded = decodeURIComponent(escape(atob(encrypted)));
+                return decoded.replace('_ivote_salt_', '');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Fonction pour sauvegarder les identifiants
+        function saveCredentials(email, password, remember) {
+            if (remember && email && password) {
+                // Sauvegarder l'email
+                localStorage.setItem(STORAGE_KEY, email);
+                
+                // Chiffrer et sauvegarder le mot de passe
+                const encryptedPassword = simpleEncrypt(password);
+                localStorage.setItem(PASSWORD_STORAGE_KEY, encryptedPassword);
+                
+                // Marquer comme "se souvenir"
+                localStorage.setItem('ivote_remember_enabled', 'true');
+            } else {
+                // Supprimer les identifiants sauvegardés
+                clearSavedCredentials();
+            }
+        }
+
+        // Fonction pour récupérer les identifiants sauvegardés
+        function loadCredentials() {
+            const savedEmail = localStorage.getItem(STORAGE_KEY);
+            const savedEncryptedPassword = localStorage.getItem(PASSWORD_STORAGE_KEY);
+            const rememberEnabled = localStorage.getItem('ivote_remember_enabled') === 'true';
+            
+            if (savedEmail && savedEncryptedPassword && rememberEnabled) {
+                // Déchiffrer le mot de passe
+                const decryptedPassword = simpleDecrypt(savedEncryptedPassword);
+                
+                if (decryptedPassword) {
+                    emailInput.value = savedEmail;
+                    passwordInput.value = decryptedPassword;
+                    rememberCheckbox.checked = true;
+                    
+                    // Afficher un message d'information
+                    showAutoFillMessage('Identifiants restaurés automatiquement');
+                    
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Fonction pour effacer les identifiants sauvegardés
+        function clearSavedCredentials() {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(PASSWORD_STORAGE_KEY);
+            localStorage.removeItem('ivote_remember_enabled');
+        }
+
+        // Fonction pour afficher un message d'auto-remplissage
+        function showAutoFillMessage(message) {
+            // Supprimer les anciens messages d'auto-remplissage
+            const oldAutoFill = document.querySelector('.autofill-message');
+            if (oldAutoFill) oldAutoFill.remove();
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'autofill-message mt-2 p-2 bg-blue-50 border border-blue-200 text-blue-700 rounded text-xs';
+            messageDiv.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <span>${message}</span>
+                    <button onclick="clearAutoFill()" class="ml-auto text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            loginForm.parentNode.insertBefore(messageDiv, loginForm.nextSibling);
+            
+            // Supprimer après 5 secondes
+            setTimeout(() => {
+                if (messageDiv.parentElement) messageDiv.remove();
+            }, 5000);
+        }
+
+        // Fonction pour effacer l'auto-remplissage
+        window.clearAutoFill = function() {
+            clearSavedCredentials();
+            emailInput.value = '';
+            passwordInput.value = '';
+            rememberCheckbox.checked = false;
+            
+            const messageDiv = document.querySelector('.autofill-message');
+            if (messageDiv) messageDiv.remove();
+            
+            showMessage('Identifiants effacés', 'info');
+        }
+
+        // Fonction pour afficher/masquer le mot de passe
+        showPasswordBtn.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Changer l'icône
+            const icon = this.querySelector('svg');
+            if (type === 'text') {
+                icon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                `;
+            } else {
+                icon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                `;
+            }
+        });
+
+        // Gestion de la soumission du formulaire de connexion
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            const remember = rememberCheckbox.checked;
+            
+            // Validation basique
+            if (!email || !password) {
+                showMessage('Veuillez remplir tous les champs', 'error');
+                return;
+            }
+
+            // Désactiver le bouton pendant la requête
+            const originalText = loginButton.textContent;
+            loginButton.disabled = true;
+            loginButton.textContent = 'Connexion en cours...';
+            loginButton.classList.add('opacity-50');
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password,
+                        remember: remember
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Sauvegarder les identifiants si "Se souvenir de moi" est coché
+                    saveCredentials(email, password, remember);
+                    
+                    // Stocker le token et les informations utilisateur
+                    localStorage.setItem('ivote_token', result.token);
+                    localStorage.setItem('ivote_user', JSON.stringify(result.user));
+                    
+                    // Stocker la session
+                    if (remember) {
+                        localStorage.setItem('ivote_session', 'active');
+                    }
+                    
+                    showMessage('Connexion réussie ! Redirection en cours...', 'success');
+                    
+                    // Rediriger vers le dashboard après 1.5 secondes
+                    setTimeout(() => {
+                        window.location.href = '/dashboard.html';
+                    }, 1500);
+                    
+                } else {
+                    showMessage(result.message || 'Échec de la connexion', 'error');
+                }
+
+            } catch (error) {
+                console.error('Erreur de connexion:', error);
+                showMessage('Erreur de connexion au serveur', 'error');
+            } finally {
+                loginButton.disabled = false;
+                loginButton.textContent = originalText;
+                loginButton.classList.remove('opacity-50');
+            }
+        });
+
+        // Gestion du "Mot de passe oublié"
+        forgotLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            openForgotPasswordModal();
+        });
+
+        // Gestion du lien "Inscrivez-vous ici"
+        signupLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = '/public/inscription.html';
+        });
+
+        // Fonctions pour le modal
+        function openForgotPasswordModal() {
+            // Pré-remplir avec l'email du formulaire de connexion si présent
+            if (emailInput.value.trim()) {
+                resetEmailInput.value = emailInput.value.trim();
+            }
+            
+            // Afficher le modal
+            forgotPasswordModal.classList.remove('hidden');
+            forgotPasswordModal.classList.add('flex');
+            
+            // Focus sur le champ email
+            setTimeout(() => {
+                resetEmailInput.focus();
+            }, 100);
+            
+            // Empêcher le défilement du body
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeForgotPasswordModal() {
+            forgotPasswordModal.classList.add('hidden');
+            forgotPasswordModal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+            
+            // Réinitialiser le formulaire
+            forgotPasswordForm.reset();
+            resetMessageDiv.classList.add('hidden');
+        }
+
+        // Soumission du formulaire de réinitialisation
+        forgotPasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = resetEmailInput.value.trim();
+            
+            if (!email) {
+                showResetMessage('Veuillez entrer votre adresse email', 'error');
+                return;
+            }
+            
+            // Désactiver le bouton
+            const originalText = sendResetBtn.innerHTML;
+            sendResetBtn.disabled = true;
+            sendResetBtn.innerHTML = `
+                <i class="fas fa-circle-notch animate-spin mr-2"></i>
+                Envoi en cours...
+            `;
+            
+            try {
+                const response = await fetch('/api/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResetMessage(result.message, 'success');
+                    // Vider le champ après succès
+                    resetEmailInput.value = '';
+                    
+                    // Fermer le modal après 3 secondes
+                    setTimeout(() => {
+                        closeForgotPasswordModal();
+                    }, 3000);
+                } else {
+                    showResetMessage(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showResetMessage('Erreur de connexion au serveur', 'error');
+            } finally {
+                sendResetBtn.disabled = false;
+                sendResetBtn.innerHTML = originalText;
+            }
+        });
+
+        // Fonction pour afficher les messages dans le modal
+        function showResetMessage(text, type) {
+            resetMessageDiv.textContent = text;
+            resetMessageDiv.className = 'p-3 rounded-lg text-sm ';
+            
+            if (type === 'success') {
+                resetMessageDiv.classList.add('bg-green-50', 'border', 'border-green-200', 'text-green-700');
+            } else if (type === 'error') {
+                resetMessageDiv.classList.add('bg-red-50', 'border', 'border-red-200', 'text-red-700');
+            }
+            
+            resetMessageDiv.classList.remove('hidden');
+        }
+
+        // Fonction pour afficher des messages sur la page de connexion
+        function showMessage(message, type = 'info') {
+            // Supprimer les anciens messages
+            const oldMessage = document.querySelector('.login-message');
+            if (oldMessage) oldMessage.remove();
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `login-message mt-3 p-3 rounded-lg text-sm ${
+                type === 'error' ? 'bg-red-50 border border-red-200 text-red-700' :
+                type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' :
+                'bg-blue-50 border border-blue-200 text-blue-700'
+            }`;
+            messageDiv.textContent = message;
+            
+            // Insérer après le formulaire
+            loginForm.parentNode.insertBefore(messageDiv, loginForm.nextSibling);
+            
+            // Supprimer après 5 secondes (sauf pour les succès)
+            if (type !== 'success') {
+                setTimeout(() => {
+                    if (messageDiv.parentElement) messageDiv.remove();
+                }, 5000);
+            }
+        }
+
+        // Charger les identifiants sauvegardés au chargement de la page
+        window.addEventListener('DOMContentLoaded', () => {
+            const credentialsLoaded = loadCredentials();
+            
+            // Si aucun identifiant n'a été chargé, focus sur le champ email
+            if (!credentialsLoaded) {
+                setTimeout(() => {
+                    emailInput.focus();
+                }, 100);
+            }
+            
+            // Vérifier si l'utilisateur est déjà connecté
+            const token = localStorage.getItem('ivote_token');
+            if (token) {
+                // Vérifier si la session est encore valide
+                checkSession();
+            }
+        });
+
+        // Vérifier la session
+        async function checkSession() {
+            const token = localStorage.getItem('ivote_token');
+            const user = localStorage.getItem('ivote_user');
+            
+            if (token && user) {
+                try {
+                    const response = await fetch('/api/check-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ token: token })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Rediriger automatiquement si la session est valide
+                        showMessage('Session restaurée, redirection...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/dashboard.html';
+                        }, 1000);
+                    }
+                } catch (error) {
+                    // Ignorer l'erreur, l'utilisateur devra se reconnecter
+                    console.log('Session expirée ou invalide');
+                }
+            }
+        }
+
+        // Optionnel: Ajouter un bouton "Effacer les identifiants"
+        window.addEventListener('DOMContentLoaded', () => {
+            // Ajouter un bouton pour effacer les identifiants si des identifiants sont sauvegardés
+            const savedEmail = localStorage.getItem(STORAGE_KEY);
+            if (savedEmail) {
+                const clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'text-xs text-gray-500 hover:text-red-600 mt-2';
+                clearBtn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i>Effacer les identifiants enregistrés';
+                clearBtn.onclick = clearAutoFill;
+                
+                const formContainer = document.querySelector('.md\\:w-1\\/2');
+                if (formContainer) {
+                    formContainer.appendChild(clearBtn);
+                }
+            }
+        });
+
+        // Fermer le modal en cliquant à l'extérieur
+        document.addEventListener('click', function(event) {
+            if (event.target === forgotPasswordModal) {
+                closeForgotPasswordModal();
+            }
+        });
+
+        // Fermer le modal avec la touche Echap
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeForgotPasswordModal();
+            }
+        });
+    </script>
+
+</body>
+</html>

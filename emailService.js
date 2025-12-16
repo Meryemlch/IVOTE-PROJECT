@@ -262,7 +262,7 @@ class EmailService {
         </div>
         
         <div class="illustration">
-            <img src="images/Confirmed-rafiki.svg" alt="Confirmation" />
+            <img src="images/undraw_online-survey_xq2g.svg" alt="Confirmation" />
         </div>
         
         <div class="content">
@@ -368,6 +368,348 @@ class EmailService {
         console.log(`📧 Email de bienvenue simulé pour: ${email}`);
         return { success: true, simulated: true };
     }
+
+    // Envoyer un email de réinitialisation de mot de passe
+async sendPasswordResetEmail(email, resetLink, prenom) {
+    // Vérifier si les variables SMTP sont définies
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.warn('⚠️ Variables SMTP non configurées. Email simulé.');
+        console.log(`📧 [SIMULATION] Email de réinitialisation pour: ${email}`);
+        console.log(`📧 [SIMULATION] Lien: ${resetLink}`);
+        
+        return {
+            success: true,
+            simulated: true,
+            message: 'Email simulé (SMTP non configuré)'
+        };
+    }
+
+    const mailOptions = {
+        from: process.env.EMAIL_FROM || `"iVOTE" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Réinitialisation de votre mot de passe - iVOTE',
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                        line-height: 1.6;
+                        color: #333333;
+                        background-color: #f8fafc;
+                    }
+                    
+                    .email-container {
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 16px;
+                        overflow: hidden;
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                    }
+                    
+                    .email-header {
+                        background: linear-gradient(135deg, #4663e6 0%, #6a82fb 100%);
+                        color: white;
+                        padding: 40px 20px;
+                        text-align: center;
+                        position: relative;
+                    }
+                    
+                    .header-content {
+                        position: relative;
+                        z-index: 2;
+                    }
+                    
+                    .logo {
+                        font-size: 32px;
+                        font-weight: 800;
+                        margin-bottom: 10px;
+                        letter-spacing: -0.5px;
+                    }
+                    
+                    .tagline {
+                        font-size: 16px;
+                        opacity: 0.9;
+                        font-weight: 400;
+                    }
+                    
+                    .reset-image {
+                        max-width: 180px;
+                        margin: 30px auto 0;
+                        display: block;
+                    }
+                    
+                    .email-body {
+                        padding: 40px 30px;
+                    }
+                    
+                    .greeting {
+                        font-size: 24px;
+                        font-weight: 600;
+                        color: #1e293b;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .message {
+                        font-size: 16px;
+                        color: #475569;
+                        margin-bottom: 24px;
+                        line-height: 1.7;
+                    }
+                    
+                    .highlight {
+                        color: #4663e6;
+                        font-weight: 600;
+                    }
+                    
+                    .reset-section {
+                        background: linear-gradient(to right, #f8fafc, #f1f5f9);
+                        border-radius: 12px;
+                        padding: 30px;
+                        margin: 30px 0;
+                        text-align: center;
+                        border: 1px solid #e2e8f0;
+                    }
+                    
+                    .reset-title {
+                        color: #1e293b;
+                        font-size: 18px;
+                        font-weight: 600;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .reset-button {
+                        display: inline-block;
+                        background: linear-gradient(135deg, #4663e6 0%, #6a82fb 100%);
+                        color: white;
+                        padding: 16px 40px;
+                        text-decoration: none;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        font-size: 16px;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 4px 12px rgba(70, 99, 230, 0.3);
+                    }
+                    
+                    .reset-button:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 16px rgba(70, 99, 230, 0.4);
+                    }
+                    
+                    .link-alternative {
+                        margin-top: 25px;
+                        font-size: 14px;
+                        color: #64748b;
+                    }
+                    
+                    .link-box {
+                        background-color: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin-top: 10px;
+                        word-break: break-all;
+                        font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+                        font-size: 13px;
+                        color: #4663e6;
+                        line-height: 1.5;
+                    }
+                    
+                    .warning-box {
+                        background-color: #fff7ed;
+                        border: 1px solid #fed7aa;
+                        border-radius: 10px;
+                        padding: 18px;
+                        margin: 30px 0;
+                        text-align: center;
+                    }
+                    
+                    .warning-icon {
+                        color: #f59e0b;
+                        font-size: 18px;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .warning-text {
+                        color: #92400e;
+                        font-size: 14px;
+                        font-weight: 500;
+                    }
+                    
+                    .footer-note {
+                        font-size: 14px;
+                        color: #64748b;
+                        margin-top: 30px;
+                        line-height: 1.6;
+                    }
+                    
+                    .email-footer {
+                        background-color: #f8fafc;
+                        padding: 25px 30px;
+                        border-top: 1px solid #e2e8f0;
+                        text-align: center;
+                    }
+                    
+                    .footer-logo {
+                        color: #4663e6;
+                        font-weight: 700;
+                        font-size: 18px;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .copyright {
+                        font-size: 12px;
+                        color: #94a3b8;
+                        margin-top: 15px;
+                        line-height: 1.5;
+                    }
+                    
+                    .auto-note {
+                        font-size: 11px;
+                        color: #cbd5e1;
+                        font-style: italic;
+                        margin-top: 10px;
+                    }
+                    
+                    @media (max-width: 480px) {
+                        .email-body, .email-footer {
+                            padding: 25px 20px;
+                        }
+                        
+                        .reset-section {
+                            padding: 20px;
+                        }
+                        
+                        .greeting {
+                            font-size: 22px;
+                        }
+                        
+                        .reset-button {
+                            padding: 14px 30px;
+                            font-size: 15px;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="email-container">
+                    <div class="email-header">
+                        <div class="header-content">
+                            <div class="logo">iVOTE</div>
+                            <div class="tagline">Votez en toute sécurité</div>
+                            <div style="font-size: 48px; margin: 20px 0;">🔒</div>
+                        </div>
+                    </div>
+                    
+                    <div class="email-body">
+                        <h1 class="greeting">Bonjour ${prenom},</h1>
+                        
+                        <p class="message">
+                            Vous avez demandé une réinitialisation de votre mot de passe <span class="highlight">iVOTE</span>.
+                        </p>
+                        
+                        <p class="message">
+                            Pour créer un nouveau mot de passe, cliquez sur le bouton ci-dessous :
+                        </p>
+                        
+                        <div class="reset-section">
+                            <div class="reset-title">Réinitialiser votre mot de passe</div>
+                            <a href="${resetLink}" class="reset-button">
+                                Changer mon mot de passe
+                            </a>
+                            
+                            <div class="link-alternative">
+                                <p>Si le bouton ne fonctionne pas, copiez-collez ce lien :</p>
+                                <div class="link-box">
+                                    ${resetLink}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="warning-box">
+                            <div class="warning-icon">⚠️</div>
+                            <div class="warning-text">Ce lien de réinitialisation expirera dans 1 heure</div>
+                        </div>
+                        
+                        <p class="footer-note">
+                            Si vous n'avez pas demandé cette réinitialisation, aucune action n'est requise de votre part. 
+                            Votre mot de passe restera inchangé.
+                        </p>
+                    </div>
+                    
+                    <div class="email-footer">
+                        <div class="footer-logo">iVOTE</div>
+                        <p style="color: #64748b; font-size: 14px;">
+                            La plateforme de vote numérique sécurisée et transparente
+                        </p>
+                        <div class="copyright">
+                            © ${new Date().getFullYear()} iVOTE. Tous droits réservés.<br>
+                            Cet email a été envoyé automatiquement, merci de ne pas y répondre.
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `,
+        text: `
+            Bonjour ${prenom},
+            
+            Vous avez demandé une réinitialisation de votre mot de passe iVOTE.
+            
+            Pour créer un nouveau mot de passe, cliquez sur ce lien :
+            ${resetLink}
+            
+            Ce lien expirera dans 1 heure.
+            
+            Si vous n'avez pas fait cette demande, ignorez cet email.
+            
+            © ${new Date().getFullYear()} iVOTE
+        `
+    };
+
+    try {
+        console.log(`📧 Tentative d'envoi d'email de réinitialisation à: ${email}`);
+        const info = await this.transporter.sendMail(mailOptions);
+        console.log(`✅ Email de réinitialisation envoyé à: ${email}`);
+        
+        return { 
+            success: true, 
+            messageId: info.messageId,
+            simulated: false
+        };
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'envoi de l\'email de réinitialisation:', error.message);
+        
+        // Fallback: simuler l'email
+        console.log(`📧 [FALLBACK] Email de réinitialisation simulé pour: ${email}`);
+        console.log(`📧 [FALLBACK] Lien: ${resetLink}`);
+        
+        return { 
+            success: false, 
+            error: error.message,
+            simulated: true,
+            fallbackLink: resetLink
+        };
+    }
 }
 
+//_____________________________________________________________________________________________________________________________________________________________________
+
+
+    
+}
+
+
+
 module.exports = new EmailService();
+
