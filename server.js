@@ -3,12 +3,12 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const path = require('path');
 const crypto = require('crypto');
 const emailService = require('./emailService');
 const session = require('express-session');
 const jwt = require('jsonwebtoken');
 const expressLayouts = require('express-ejs-layouts');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -16,8 +16,8 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
 // Configuration des sessions
@@ -57,13 +57,24 @@ async function createPool() {
         process.exit(1);
     }
 }
-// Configuration EJS avec layouts (ORDRE IMPORTANT!)
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-app.use(expressLayouts);
-app.set('layout', 'layouts/main'); // Layout par défaut
-// Middleware pour injecter les données utilisateur
 
+// Configuration EJS avec layouts
+app.set('view engine', 'ejs');
+app.set('views', __dirname + '/views');
+app.use(expressLayouts);
+app.set('layout', 'layouts/main');
+
+// Créer le dossier uploads s'il n'existe pas
+const uploadsDir = __dirname + '/public/uploads';
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('📁 Dossier uploads créé:', uploadsDir);
+}
+
+// Servir les fichiers statiques uploadés
+app.use('/uploads', express.static('public/uploads'));
+
+// Middleware pour injecter les données utilisateur
 app.use(async (req, res, next) => {
     if (req.session.userId) {
         try {
@@ -120,32 +131,32 @@ app.get('/', (req, res) => {
     if (req.session.userId && req.user) {
         res.redirect('/dashboard');
     } else {
-        res.sendFile(path.join(__dirname, 'public', 'connexion.html'));
+        res.sendFile(__dirname + '/public/connexion.html');
     }
 });
 
 app.get('/inscription', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'inscription.html'));
+    res.sendFile(__dirname + '/public/inscription.html');
 });
 
 app.get('/verify-email', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'verify-email.html'));
+    res.sendFile(__dirname + '/public/verify-email.html');
 });
 
 app.get('/verification-success', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'verification-success.html'));
+    res.sendFile(__dirname + '/public/verification-success.html');
 });
 
 app.get('/waiting-verification', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'waiting-verification.html'));
+    res.sendFile(__dirname + '/public/waiting-verification.html');
 });
 
 app.get('/reset-password', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'reset-password.html'));
+    res.sendFile(__dirname + '/public/reset-password.html');
 });
 
 app.get('/forgot-password', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
+    res.sendFile(__dirname + '/public/forgot-password.html');
 });
 
 // ==================== ROUTES DASHBOARD ====================
@@ -264,6 +275,7 @@ app.get('/logout', (req, res) => {
         res.redirect('/');
     });
 });
+
 // Route Explorer
 app.get('/explorer', requireAuth, (req, res) => {
     res.render('dashboard/explorer', {
@@ -309,7 +321,7 @@ app.get('/statistics', requireAuth, (req, res) => {
     });
 });
 
-// Route Sondages (remplace /poll/create)
+// Route Sondages
 app.get('/polls', requireAuth, (req, res) => {
     res.render('dashboard/polls', {
         title: 'Mes Sondages',
@@ -643,7 +655,7 @@ app.post('/api/login', async (req, res) => {
         req.session.userId = user.id;
         req.session.userEmail = user.email;
         req.session.userName = `${user.prenom} ${user.nom}`;
-        req.user = user; // Ajouter l'utilisateur à la requête
+        req.user = user;
         
         if (remember) {
             req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
@@ -652,7 +664,6 @@ app.post('/api/login', async (req, res) => {
         console.log('✅ Connexion réussie pour:', email);
         console.log('   Session créée:', req.session.userId);
 
-        // Créer un token JWT également si nécessaire
         const tokenPayload = {
             id: user.id,
             email: user.email,
@@ -1092,6 +1103,581 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
+// ==================== ROUTES POUR LES SONDAGES ET VOTES ====================
+
+// Route pour récupérer les catégories
+app.get('/api/categories', async (req, res) => {
+    try {
+        const [categories] = await pool.execute(
+            'SELECT * FROM poll_categories ORDER BY name'
+        );
+        
+        res.json({
+            success: true,
+            categories: categories
+        });
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des catégories:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour créer un sondage/vote
+app.post('/api/polls', requireAuth, async (req, res) => {
+    const { 
+        title,
+        question, 
+        description,
+        options, 
+        duration_hours, 
+        duration_minutes, 
+        poll_category,
+        poll_type,
+        category_id,
+        is_anonymous,
+        is_public,
+        allow_images,
+        password
+    } = req.body;
+
+    if (!title || !question || !options || !Array.isArray(options) || options.length < 2) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Titre, question et au moins 2 options sont requises' 
+        });
+    }
+
+    // Validation du type
+    if (!['sondage', 'vote'].includes(poll_category)) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Type de création invalide' 
+        });
+    }
+
+    try {
+        // Calculer la date de fin
+        const now = new Date();
+        let endTime = new Date(now);
+        
+        if (duration_hours) endTime.setHours(endTime.getHours() + parseInt(duration_hours));
+        if (duration_minutes) endTime.setMinutes(endTime.getMinutes() + parseInt(duration_minutes));
+        
+        // Si aucune durée spécifiée, mettre 24h par défaut
+        if (!duration_hours && !duration_minutes) {
+            endTime.setHours(endTime.getHours() + 24);
+        }
+
+        // Créer le sondage/vote
+        const [pollResult] = await pool.execute(
+            `INSERT INTO polls 
+            (title, question, description, end_time, created_by, status, 
+             poll_category, poll_type, category_id, is_anonymous, is_public, allow_images, password) 
+            VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                title,
+                question,
+                description || null,
+                endTime,
+                req.user.id,
+                poll_category,
+                poll_type || 'single',
+                category_id || null,
+                is_anonymous || false,
+                is_public !== undefined ? is_public : true,
+                allow_images || false,
+                password || null
+            ]
+        );
+
+        const pollId = pollResult.insertId;
+
+        // Ajouter les options
+        for (const [index, option] of options.entries()) {
+            let imageUrl = null;
+            
+            // Si une image en base64 est fournie, la sauvegarder
+            if (allow_images && option.image && option.image.startsWith('data:image')) {
+                try {
+                    // Extraire les données base64
+                    const matches = option.image.match(/^data:image\/(\w+);base64,(.+)$/);
+                    if (matches) {
+                        const ext = matches[1];
+                        const data = matches[2];
+                        const buffer = Buffer.from(data, 'base64');
+                        
+                        // Créer un nom de fichier unique
+                        const filename = `option_${pollId}_${index}_${Date.now()}.${ext}`;
+                        const filepath = __dirname + '/public/uploads/' + filename;
+                        
+                        // Sauvegarder le fichier
+                        await fs.promises.writeFile(filepath, buffer);
+                        
+                        imageUrl = `/uploads/${filename}`;
+                        console.log(`📸 Image sauvegardée: ${filename}`);
+                    }
+                } catch (imageError) {
+                    console.error('❌ Erreur lors de la sauvegarde de l\'image:', imageError);
+                }
+            }
+            
+            await pool.execute(
+                `INSERT INTO poll_options 
+                (poll_id, option_text, option_image, option_order) 
+                VALUES (?, ?, ?, ?)`,
+                [
+                    pollId,
+                    option.text || option,
+                    imageUrl,
+                    index
+                ]
+            );
+        }
+
+        console.log(`✅ ${poll_category === 'vote' ? 'Vote' : 'Sondage'} créé (ID: ${pollId}) par: ${req.user.email}`);
+
+        res.status(201).json({
+            success: true,
+            message: poll_category === 'vote' ? 'Vote officiel créé avec succès' : 'Sondage créé avec succès',
+            poll_id: pollId,
+            end_time: endTime
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la création:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur lors de la création'
+        });
+    }
+});
+
+// Route pour récupérer tous les sondages/votes
+app.get('/api/polls', requireAuth, async (req, res) => {
+    try {
+        const [polls] = await pool.execute(`
+            SELECT p.*, 
+                   pc.name as category_name,
+                   CONCAT(u.prenom, ' ', u.nom) as creator_name,
+                   (SELECT COUNT(*) FROM poll_options po WHERE po.poll_id = p.id) as options_count,
+                   (SELECT COUNT(DISTINCT user_id) FROM votes WHERE poll_id = p.id) as total_votes,
+                   CASE 
+                       WHEN p.created_by = ? THEN 1
+                       ELSE 0
+                   END as is_creator
+            FROM polls p
+            LEFT JOIN poll_categories pc ON p.category_id = pc.id
+            JOIN users u ON p.created_by = u.id
+            WHERE (p.is_public = 1 OR p.created_by = ?)
+            ORDER BY p.end_time DESC, p.created_at DESC
+        `, [req.user.id, req.user.id]);
+
+        // Pour chaque sondage/vote, récupérer les options et vérifier si l'utilisateur a déjà voté
+        const pollsWithDetails = await Promise.all(polls.map(async (poll) => {
+            const [options] = await pool.execute(`
+                SELECT id, option_text, option_image 
+                FROM poll_options 
+                WHERE poll_id = ? 
+                ORDER BY option_order
+            `, [poll.id]);
+
+            const [hasVoted] = await pool.execute(`
+                SELECT COUNT(*) as count 
+                FROM votes 
+                WHERE poll_id = ? AND user_id = ?
+            `, [poll.id, req.user.id]);
+
+            return {
+                ...poll,
+                options,
+                has_voted: hasVoted[0].count > 0,
+                is_active: new Date(poll.end_time) > new Date() && poll.status === 'active'
+            };
+        }));
+
+        res.json({
+            success: true,
+            polls: pollsWithDetails
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des sondages:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour voter
+app.post('/api/vote', requireAuth, async (req, res) => {
+    const { poll_id, options } = req.body;
+
+    if (!poll_id || !options || !Array.isArray(options) || options.length === 0) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Données de vote invalides' 
+        });
+    }
+
+    try {
+        // Vérifier si le sondage/vote existe et est actif
+        const [pollRows] = await pool.execute(`
+            SELECT p.*, u.id as creator_id 
+            FROM polls p
+            JOIN users u ON p.created_by = u.id
+            WHERE p.id = ? AND p.status = 'active'
+        `, [poll_id]);
+
+        if (pollRows.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Sondage/vote non trouvé ou terminé' 
+            });
+        }
+
+        const poll = pollRows[0];
+
+        // Vérifier si l'utilisateur est le créateur
+        if (poll.creator_id === req.user.id) {
+            // Si c'est un vote officiel, le créateur ne peut pas voter
+            if (poll.poll_category === 'vote') {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: 'En tant que créateur d\'un vote officiel, vous ne pouvez pas participer' 
+                });
+            }
+            // Si c'est un sondage, le créateur peut voter
+            console.log(`⚠️ Le créateur vote dans son propre sondage (ID: ${poll_id})`);
+        }
+
+        // Vérifier si le vote est encore ouvert
+        const now = new Date();
+        const endTime = new Date(poll.end_time);
+        
+        if (now > endTime) {
+            await pool.execute(
+                'UPDATE polls SET status = ? WHERE id = ?',
+                ['closed', poll_id]
+            );
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Le ' + (poll.poll_category === 'vote' ? 'vote' : 'sondage') + ' est terminé' 
+            });
+        }
+
+        // Vérifier si l'utilisateur a déjà voté
+        const [existingVotes] = await pool.execute(`
+            SELECT COUNT(*) as count 
+            FROM votes 
+            WHERE poll_id = ? AND user_id = ?
+        `, [poll_id, req.user.id]);
+
+        if (existingVotes[0].count > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Vous avez déjà voté pour ce ' + (poll.poll_category === 'vote' ? 'vote' : 'sondage') 
+            });
+        }
+
+        // Vérifier le type de vote
+        if (poll.poll_type === 'single' && options.length > 1) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Ce ' + (poll.poll_category === 'vote' ? 'vote' : 'sondage') + ' ne permet qu\'un seul choix' 
+            });
+        }
+
+        // Vérifier que les options appartiennent bien au sondage/vote
+        for (const optionId of options) {
+            const [optionRows] = await pool.execute(`
+                SELECT id FROM poll_options 
+                WHERE id = ? AND poll_id = ?
+            `, [optionId, poll_id]);
+
+            if (optionRows.length === 0) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Option de vote invalide' 
+                });
+            }
+        }
+
+        // Enregistrer le(s) vote(s)
+        for (const optionId of options) {
+            await pool.execute(`
+                INSERT INTO votes (poll_id, user_id, option_selected)
+                VALUES (?, ?, ?)
+            `, [poll_id, req.user.id, optionId]);
+        }
+
+        console.log(`✅ Vote enregistré (Poll: ${poll_id}, User: ${req.user.id}, Type: ${poll.poll_category})`);
+
+        res.json({
+            success: true,
+            message: 'Votre vote a été enregistré avec succès'
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors du vote:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur lors de l\'enregistrement du vote'
+        });
+    }
+});
+
+// Route pour récupérer les résultats d'un sondage/vote
+app.get('/api/polls/:id/results', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+
+    try {
+        // Vérifier les permissions
+        const [pollCheck] = await pool.execute(`
+            SELECT p.*, u.id as creator_id 
+            FROM polls p
+            JOIN users u ON p.created_by = u.id
+            WHERE p.id = ?
+        `, [pollId]);
+
+        if (pollCheck.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Sondage/vote non trouvé' 
+            });
+        }
+
+        const poll = pollCheck[0];
+        
+        // Vérifier si l'utilisateur peut voir les résultats
+        if (poll.status === 'active' && poll.created_by !== req.user.id) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Les résultats ne sont disponibles qu\'après la fin du ' + (poll.poll_category === 'vote' ? 'vote' : 'sondage') 
+            });
+        }
+
+        // Récupérer les informations complètes
+        const [pollRows] = await pool.execute(`
+            SELECT p.*, 
+                   pc.name as category_name,
+                   CONCAT(u.prenom, ' ', u.nom) as creator_name,
+                   (SELECT COUNT(DISTINCT user_id) FROM votes WHERE poll_id = p.id) as total_votes
+            FROM polls p
+            LEFT JOIN poll_categories pc ON p.category_id = pc.id
+            JOIN users u ON p.created_by = u.id
+            WHERE p.id = ?
+        `, [pollId]);
+
+        const pollWithDetails = pollRows[0];
+
+        // Récupérer les options avec le nombre de votes
+        const [options] = await pool.execute(`
+            SELECT po.*, 
+                   (SELECT COUNT(*) FROM votes v WHERE v.poll_id = po.poll_id AND v.option_selected = po.id) as vote_count
+            FROM poll_options po
+            WHERE po.poll_id = ?
+            ORDER BY po.option_order
+        `, [pollId]);
+
+        pollWithDetails.options = options;
+
+        res.json({
+            success: true,
+            poll: pollWithDetails
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des résultats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour fermer un sondage/vote
+app.post('/api/polls/:id/close', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+
+    try {
+        // Vérifier que l'utilisateur est bien le créateur
+        const [pollRows] = await pool.execute(`
+            SELECT created_by, poll_category, title FROM polls WHERE id = ?
+        `, [pollId]);
+
+        if (pollRows.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Sondage/vote non trouvé' 
+            });
+        }
+
+        if (pollRows[0].created_by !== req.user.id) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Vous n\'êtes pas autorisé à fermer ce sondage/vote' 
+            });
+        }
+
+        // Fermer le sondage/vote
+        await pool.execute(`
+            UPDATE polls SET status = 'closed' WHERE id = ?
+        `, [pollId]);
+
+        console.log(`🔒 ${pollRows[0].poll_category === 'vote' ? 'Vote' : 'Sondage'} fermé: "${pollRows[0].title}" (ID: ${pollId}) par: ${req.user.email}`);
+
+        res.json({
+            success: true,
+            message: (pollRows[0].poll_category === 'vote' ? 'Vote' : 'Sondage') + ' fermé avec succès'
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la fermeture:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour supprimer un sondage/vote
+app.delete('/api/polls/:id', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+
+    try {
+        // Vérifier que l'utilisateur est bien le créateur
+        const [pollRows] = await pool.execute(`
+            SELECT created_by, poll_category, title FROM polls WHERE id = ?
+        `, [pollId]);
+
+        if (pollRows.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Sondage/vote non trouvé' 
+            });
+        }
+
+        const poll = pollRows[0];
+
+        if (poll.created_by !== req.user.id) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Vous n\'êtes pas autorisé à supprimer ce sondage/vote' 
+            });
+        }
+
+        // Supprimer les votes associés
+        await pool.execute('DELETE FROM votes WHERE poll_id = ?', [pollId]);
+        
+        // Supprimer les options
+        await pool.execute('DELETE FROM poll_options WHERE poll_id = ?', [pollId]);
+        
+        // Supprimer les sessions
+        await pool.execute('DELETE FROM poll_sessions WHERE poll_id = ?', [pollId]);
+        
+        // Supprimer le sondage/vote
+        await pool.execute('DELETE FROM polls WHERE id = ?', [pollId]);
+
+        console.log(`🗑️ ${poll.poll_category === 'vote' ? 'Vote' : 'Sondage'} supprimé: "${poll.title}" (ID: ${pollId}) par: ${req.user.email}`);
+
+        res.json({
+            success: true,
+            message: (poll.poll_category === 'vote' ? 'Vote' : 'Sondage') + ' supprimé avec succès'
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la suppression:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour modifier un sondage/vote
+app.put('/api/polls/:id', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+    const { title, question, description, category_id } = req.body;
+
+    try {
+        // Vérifier que l'utilisateur est bien le créateur
+        const [pollRows] = await pool.execute(`
+            SELECT created_by, status, poll_category FROM polls WHERE id = ?
+        `, [pollId]);
+
+        if (pollRows.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Sondage/vote non trouvé' 
+            });
+        }
+
+        if (pollRows[0].created_by !== req.user.id) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Vous n\'êtes pas autorisé à modifier ce sondage/vote' 
+            });
+        }
+
+        // Vérifier que le sondage/vote n'est pas déjà commencé
+        if (pollRows[0].status !== 'active') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Impossible de modifier un ' + (pollRows[0].poll_category === 'vote' ? 'vote' : 'sondage') + ' déjà commencé ou terminé' 
+            });
+        }
+
+        // Mettre à jour
+        await pool.execute(`
+            UPDATE polls 
+            SET title = ?, question = ?, description = ?, category_id = ?
+            WHERE id = ?
+        `, [title, question, description || null, category_id || null, pollId]);
+
+        console.log(`✏️ ${pollRows[0].poll_category === 'vote' ? 'Vote' : 'Sondage'} modifié (ID: ${pollId}) par: ${req.user.email}`);
+
+        res.json({
+            success: true,
+            message: (pollRows[0].poll_category === 'vote' ? 'Vote' : 'Sondage') + ' modifié avec succès'
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la modification:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Tâche cron pour fermer automatiquement les sondages/votes expirés
+setInterval(async () => {
+    try {
+        const [expiredPolls] = await pool.execute(`
+            SELECT id, title, poll_category FROM polls 
+            WHERE status = 'active' AND end_time < NOW()
+        `);
+
+        for (const poll of expiredPolls) {
+            await pool.execute(`
+                UPDATE polls SET status = 'closed' WHERE id = ?
+            `, [poll.id]);
+            
+            console.log(`🔄 ${poll.poll_category === 'vote' ? 'Vote' : 'Sondage'} expiré fermé: "${poll.title}" (ID: ${poll.id})`);
+        }
+
+        if (expiredPolls.length > 0) {
+            console.log(`🔄 ${expiredPolls.length} sondage(s)/vote(s) automatiquement fermé(s)`);
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de la fermeture automatique:', error);
+    }
+}, 60000); // Vérifie toutes les minutes
+
 // Démarrer le serveur
 async function startServer() {
     await createPool();
@@ -1106,13 +1692,11 @@ async function startServer() {
         console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
         console.log(`📝 Page de connexion: http://localhost:${PORT}/`);
         console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
+        console.log(`🗳️  Page de vote: http://localhost:${PORT}/vote`);
         console.log(`📝 Page d'inscription: http://localhost:${PORT}/inscription`);
-        console.log(`⏳ Page d'attente: http://localhost:${PORT}/waiting-verification`);
         console.log(`📧 Vérification email: ${emailConnected ? '✅ Activée' : '⚠️ Simulation'}`);
-        console.log(`🔐 Système de session: ✅ Activé`);
-        console.log(`🏗️  Structure EJS avec layouts: ✅ Activé`);
-        console.log(`📊 Routes dashboard: /dashboard, /vote, /poll/create, /rooms, /results, /settings`);
-        console.log(`📁 Layout principal: views/layouts/main.ejs`);
+        console.log(`📁 Dossier uploads: ${uploadsDir}`);
+        console.log(`🔄 Fermeture automatique des sondages/votes: ✅ Activée`);
     });
 }
 
