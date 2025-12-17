@@ -145,6 +145,10 @@
             z-index: 110;
         }
         
+        .modal-options {
+            z-index: 120;
+        }
+        
         /* Date time picker styling */
         input[type="datetime-local"] {
             padding: 0.5rem 0.75rem;
@@ -182,6 +186,86 @@
         /* Smooth transitions */
         .modal-transition {
             transition: all 0.3s ease-in-out;
+        }
+        
+        /* Options modal styling */
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .option-item-small {
+            padding: 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            background-color: #f9fafb;
+        }
+        
+        /* Pagination styling */
+        .pagination-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            color: #4b5563;
+            transition: all 0.2s ease;
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background-color: #f3f4f6;
+            border-color: #9ca3af;
+        }
+        
+        .pagination-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Pagination container */
+        .pagination-info {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        
+        /* Page number buttons */
+        .page-number {
+            min-width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            color: #4b5563;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .page-number:hover:not(.active) {
+            background-color: #f3f4f6;
+            border-color: #9ca3af;
+        }
+        
+        .page-number.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        /* Ellipsis for pagination */
+        .page-ellipsis {
+            min-width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
         }
     </style>
 </head>
@@ -338,11 +422,36 @@
         </div>
 
         <!-- Liste des sondages/votes -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12" id="pollsContainer">
+        <div id="pollsContainer" class="mb-8">
             <!-- Les sondages seront chargés ici dynamiquement -->
-            <div class="col-span-2 text-center py-12">
+            <div class="text-center py-12">
                 <div class="spinner-border animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
                 <p class="text-gray-500">Chargement des sondages et votes...</p>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div id="paginationContainer" class="hidden">
+            <div class="flex flex-col md:flex-row justify-between items-center py-6 border-t border-gray-200">
+                <div class="pagination-info mb-4 md:mb-0">
+                    Affichage de <span id="displayStart">1</span> à <span id="displayEnd">2</span> sur <span id="totalDisplayCount">0</span> résultats
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <button onclick="goToPage(currentPage - 1)" id="prevBtn" 
+                            class="pagination-btn flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span class="material-icons text-sm mr-1">chevron_left</span>
+                        Précédent
+                    </button>
+                    
+                    <div id="pageNumbers" class="flex items-center space-x-1"></div>
+                    
+                    <button onclick="goToPage(currentPage + 1)" id="nextBtn" 
+                            class="pagination-btn flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                        Suivant
+                        <span class="material-icons text-sm ml-1">chevron_right</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -745,6 +854,42 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal pour voir toutes les options -->
+        <div id="optionsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 modal-options">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-bold text-gray-800" id="optionsModalTitle"></h3>
+                        <button onclick="closeOptionsModal()" class="text-gray-400 hover:text-gray-600">
+                            <span class="material-icons text-2xl">close</span>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+                        <div class="flex flex-wrap gap-4 text-sm">
+                            <span class="flex items-center">
+                                <span class="material-icons text-base mr-1">description</span>
+                                <span id="optionsModalQuestion"></span>
+                            </span>
+                            <span class="flex items-center">
+                                <span class="material-icons text-base mr-1">list</span>
+                                <span id="optionsCount">0</span> options au total
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div id="allOptionsContainer" class="options-grid"></div>
+                    
+                    <div class="flex justify-end pt-6 border-t">
+                        <button onclick="closeOptionsModal()" 
+                                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            Fermer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->
@@ -752,12 +897,21 @@
         let currentPollId = null;
         let currentManagePollId = null;
         let allPolls = [];
+        let filteredPolls = [];
         let currentTab = 'all';
-        let optionCounter = 1; // CHANGÉ: Commence à 1 au lieu de 2
+        let optionCounter = 1;
         let currentImages = {};
         let categories = [];
         let confirmActionCallback = null;
         let confirmActionType = null;
+        
+        // Pagination variables
+        let currentPage = 1;
+        const pollsPerPage = 2; // 2 sondages par page
+        let totalPages = 1;
+        
+        // Options modal variables
+        let currentOptionsPoll = null;
 
         // Initialisation
         document.addEventListener('DOMContentLoaded', async () => {
@@ -842,7 +996,7 @@
                 }
             });
             
-            let filteredPolls = allPolls;
+            filteredPolls = allPolls;
             
             switch(tab) {
                 case 'votes':
@@ -883,7 +1037,9 @@
                 filteredPolls = filteredPolls.filter(poll => poll.status === statusFilter);
             }
             
-            displayPolls(filteredPolls);
+            // Réinitialiser la pagination
+            currentPage = 1;
+            displayPolls();
         }
 
         function filterByType(type) {
@@ -895,7 +1051,7 @@
                 }
             });
             
-            let filteredPolls = allPolls;
+            filteredPolls = allPolls;
             
             if (type !== 'all') {
                 filteredPolls = allPolls.filter(p => p.poll_category === type);
@@ -917,28 +1073,131 @@
                     break;
             }
             
-            displayPolls(filteredPolls);
+            // Réinitialiser la pagination
+            currentPage = 1;
+            displayPolls();
         }
 
         function switchTab(tab) {
             filterPolls(tab);
         }
 
-        function displayPolls(polls) {
+        function displayPolls() {
             const container = document.getElementById('pollsContainer');
+            const paginationContainer = document.getElementById('paginationContainer');
             
-            if (polls.length === 0) {
+            if (filteredPolls.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-2 text-center py-12">
+                    <div class="text-center py-12">
                         <span class="material-icons text-gray-400 text-6xl mb-4">info</span>
                         <h3 class="text-xl font-semibold text-gray-700 mb-2">Aucun contenu disponible</h3>
                         <p class="text-gray-500">Créez votre premier sondage ou vote, ou revenez plus tard.</p>
                     </div>
                 `;
+                paginationContainer.classList.add('hidden');
                 return;
             }
 
-            container.innerHTML = polls.map(poll => createPollCard(poll)).join('');
+            // Calculer les indices de début et fin pour la page actuelle
+            const startIndex = (currentPage - 1) * pollsPerPage;
+            const endIndex = Math.min(startIndex + pollsPerPage, filteredPolls.length);
+            const pollsToDisplay = filteredPolls.slice(startIndex, endIndex);
+            
+            // Calculer le nombre total de pages
+            totalPages = Math.ceil(filteredPolls.length / pollsPerPage);
+            
+            // Afficher les sondages
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    ${pollsToDisplay.map(poll => createPollCard(poll)).join('')}
+                </div>
+            `;
+
+            // Mettre à jour la pagination
+            updatePagination();
+            
+            // Afficher la pagination s'il y a plus d'une page
+            if (totalPages > 1) {
+                paginationContainer.classList.remove('hidden');
+            } else {
+                paginationContainer.classList.add('hidden');
+            }
+        }
+
+        function updatePagination() {
+            const displayStart = document.getElementById('displayStart');
+            const displayEnd = document.getElementById('displayEnd');
+            const totalDisplayCount = document.getElementById('totalDisplayCount');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const pageNumbers = document.getElementById('pageNumbers');
+            
+            // Mettre à jour les informations de pagination
+            const startIndex = (currentPage - 1) * pollsPerPage + 1;
+            const endIndex = Math.min(currentPage * pollsPerPage, filteredPolls.length);
+            
+            displayStart.textContent = startIndex;
+            displayEnd.textContent = endIndex;
+            totalDisplayCount.textContent = filteredPolls.length;
+            
+            // Activer/désactiver les boutons précédent/suivant
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+            
+            // Générer les numéros de page
+            pageNumbers.innerHTML = '';
+            
+            // Toujours afficher la première page
+            addPageNumber(1);
+            
+            // Afficher les points de suspension si nécessaire
+            if (currentPage > 3) {
+                addEllipsis();
+            }
+            
+            // Afficher les pages autour de la page actuelle
+            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                if (i !== 1 && i !== totalPages) {
+                    addPageNumber(i);
+                }
+            }
+            
+            // Afficher les points de suspension si nécessaire
+            if (currentPage < totalPages - 2) {
+                addEllipsis();
+            }
+            
+            // Toujours afficher la dernière page si elle existe
+            if (totalPages > 1) {
+                addPageNumber(totalPages);
+            }
+        }
+
+        function addPageNumber(pageNumber) {
+            const pageNumbers = document.getElementById('pageNumbers');
+            const pageElement = document.createElement('button');
+            pageElement.className = `page-number ${pageNumber === currentPage ? 'active' : ''}`;
+            pageElement.textContent = pageNumber;
+            pageElement.onclick = () => goToPage(pageNumber);
+            pageNumbers.appendChild(pageElement);
+        }
+
+        function addEllipsis() {
+            const pageNumbers = document.getElementById('pageNumbers');
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'page-ellipsis';
+            ellipsis.textContent = '...';
+            pageNumbers.appendChild(ellipsis);
+        }
+
+        function goToPage(page) {
+            if (page < 1 || page > totalPages) return;
+            
+            currentPage = page;
+            displayPolls();
+            
+            // Scroll vers le haut de la liste
+            document.getElementById('pollsContainer').scrollIntoView({ behavior: 'smooth' });
         }
 
         function createPollCard(poll) {
@@ -1069,7 +1328,9 @@
                                 `).join('')}
                                 ${remainingOptions > 0 ? 
                                     `<div class="text-center text-gray-500 text-sm py-2">
-                                        <button onclick="viewAllOptions(${poll.id})" class="text-blue-600 hover:text-blue-700 underline">
+                                        <button onclick="openOptionsModal(${poll.id})" 
+                                                class="text-blue-600 hover:text-blue-700 underline flex items-center justify-center mx-auto">
+                                            <span class="material-icons text-sm mr-1">expand_more</span>
                                             Voir ${remainingOptions} option(s) supplémentaire(s)
                                         </button>
                                     </div>` : ''
@@ -1090,9 +1351,52 @@
             `;
         }
 
-        // Gestion des modals
+        // Modal pour voir toutes les options
+        function openOptionsModal(pollId) {
+            const poll = allPolls.find(p => p.id === pollId);
+            if (!poll) return;
+            
+            currentOptionsPoll = poll;
+            
+            document.getElementById('optionsModalTitle').textContent = poll.title;
+            document.getElementById('optionsModalQuestion').textContent = poll.question;
+            document.getElementById('optionsCount').textContent = poll.options.length;
+            
+            const optionsContainer = document.getElementById('allOptionsContainer');
+            optionsContainer.innerHTML = poll.options.map((option, index) => `
+                <div class="option-item-small">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 mr-3">
+                            ${option.option_image ? 
+                                `<img src="${option.option_image}" alt="${option.option_text}" 
+                                      class="w-16 h-16 object-cover rounded">` : 
+                                `<div class="w-16 h-16 bg-blue-100 rounded flex items-center justify-center">
+                                    <span class="material-icons text-blue-600">description</span>
+                                </div>`
+                            }
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center mb-1">
+                                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">Option ${index + 1}</span>
+                            </div>
+                            <p class="text-sm font-medium text-gray-800">${option.option_text}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('optionsModal').classList.remove('hidden');
+            document.getElementById('optionsModal').classList.add('flex');
+        }
+
+        function closeOptionsModal() {
+            document.getElementById('optionsModal').classList.add('hidden');
+            document.getElementById('optionsModal').classList.remove('flex');
+            currentOptionsPoll = null;
+        }
+
+        // Gestion des autres modals (restent inchangés)...
         function openCreateModal() {
-            // Définir la date/heure par défaut (24h à partir de maintenant)
             const now = new Date();
             now.setHours(now.getHours() + 24);
             const formattedDateTime = now.toISOString().slice(0, 16);
@@ -1108,7 +1412,7 @@
             document.getElementById('createForm').reset();
             document.getElementById('optionsContainer').innerHTML = '';
             currentImages = {};
-            optionCounter = 1; // Réinitialiser à 1
+            optionCounter = 1;
             addInitialOptions();
         }
 
@@ -1156,24 +1460,20 @@
             
             currentManagePollId = pollId;
             
-            // Remplir le formulaire avec les données du sondage/vote
             document.getElementById('editPollId').value = pollId;
             document.getElementById('editTitle').value = poll.title;
             document.getElementById('editQuestion').value = poll.question;
             document.getElementById('editDescription').value = poll.description || '';
             document.getElementById('editCategory').value = poll.category_id || '';
             
-            // Afficher les informations non modifiables
             document.getElementById('editPollType').textContent = poll.poll_category === 'sondage' ? 'Sondage' : 'Vote officiel';
             document.getElementById('editPollStatus').textContent = poll.status === 'active' ? 'Actif' : 'Terminé';
             document.getElementById('editEndTime').textContent = formatDate(poll.end_time);
             document.getElementById('editOptionsCount').textContent = poll.options_count || poll.options?.length || 0;
             document.getElementById('editCreatedAt').textContent = formatDate(poll.created_at);
             
-            // Fermer le modal de gestion
             closeManageModal();
             
-            // Ouvrir le modal d'édition
             document.getElementById('editModal').classList.remove('hidden');
             document.getElementById('editModal').classList.add('flex');
         }
@@ -1187,7 +1487,6 @@
             document.getElementById('confirmTitle').textContent = title;
             document.getElementById('confirmMessage').textContent = message;
             
-            // Configurer le bouton selon le type d'action
             const confirmButton = document.getElementById('confirmActionButton');
             if (actionType === 'delete') {
                 confirmButton.className = 'px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700';
@@ -1336,7 +1635,6 @@
         function initializeCreateForm() {
             addInitialOptions();
             
-            // Gérer l'upload d'images
             document.querySelector('input[name="allow_images"]').addEventListener('change', function() {
                 const imageContainers = document.querySelectorAll('.image-upload-container');
                 if (this.checked) {
@@ -1350,9 +1648,8 @@
         function addInitialOptions() {
             const optionsContainer = document.getElementById('optionsContainer');
             optionsContainer.innerHTML = '';
-            optionCounter = 1; // CHANGÉ: Commence à 1
+            optionCounter = 1;
             
-            // Ajouter 2 options par défaut
             addOption();
             addOption();
         }
@@ -1401,14 +1698,12 @@
             const file = input.files[0];
             if (!file) return;
             
-            // Vérifier la taille
             if (file.size > 5 * 1024 * 1024) {
                 showMessage('error', 'L\'image est trop volumineuse (max 5MB)');
                 input.value = '';
                 return;
             }
             
-            // Vérifier le type
             if (!file.type.match('image.*')) {
                 showMessage('error', 'Veuillez sélectionner une image valide');
                 input.value = '';
@@ -1431,7 +1726,6 @@
                     </div>
                 `;
                 
-                // Stocker l'image en base64
                 currentImages[optionId] = e.target.result;
                 document.getElementById(`imageData-${optionId}`).value = e.target.result;
             };
@@ -1463,11 +1757,9 @@
             const formData = new FormData(this);
             const allowImages = formData.get('allow_images') === 'on';
             
-            // Convertir la date/heure en format ISO
             const endDatetime = formData.get('end_datetime');
             const endTime = new Date(endDatetime);
             
-            // Vérifier que la date de fin est dans le futur
             const now = new Date();
             if (endTime <= now) {
                 showMessage('error', 'La date de fin doit être dans le futur');
@@ -1488,7 +1780,6 @@
                 options: []
             };
             
-            // Collecter les options
             const optionInputs = document.querySelectorAll('[name^="options["]');
             const optionsMap = {};
             
@@ -1501,7 +1792,6 @@
                 }
             });
             
-            // Convertir en tableau
             data.options = Object.values(optionsMap).filter(opt => opt.text);
             
             if (data.options.length < 2) {
@@ -1509,7 +1799,6 @@
                 return;
             }
             
-            // Traiter les images si autorisées
             if (allowImages) {
                 data.options.forEach((option, index) => {
                     const optionId = Object.keys(optionsMap)[index];
@@ -1588,7 +1877,6 @@
             const form = e.target;
             const poll = allPolls.find(p => p.id === currentPollId);
             
-            // Vérifier que l'utilisateur n'est pas le créateur
             if (poll.is_creator) {
                 showMessage('error', 'Vous ne pouvez pas voter dans votre propre ' + (poll.poll_category === 'vote' ? 'vote officiel' : 'sondage'));
                 closeVoteModal();
@@ -1686,22 +1974,6 @@
             }
         }
 
-        // Fonctions utilitaires
-        function selectOption(element, isSingle) {
-            if (isSingle) {
-                document.querySelectorAll('.vote-option').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-                element.classList.add('selected');
-                const radio = element.querySelector('input[type="radio"]');
-                if (radio) radio.checked = true;
-            } else {
-                element.classList.toggle('selected');
-                const checkbox = element.querySelector('input[type="checkbox"]');
-                if (checkbox) checkbox.checked = !checkbox.checked;
-            }
-        }
-
         async function openResultsModal(pollId) {
             try {
                 const response = await fetch(`/api/polls/${pollId}/results`);
@@ -1785,38 +2057,19 @@
             document.getElementById('resultsModal').classList.remove('flex');
         }
 
-        function viewAllOptions(pollId) {
-            const poll = allPolls.find(p => p.id === pollId);
-            if (!poll) return;
-            
-            let optionsHtml = '';
-            poll.options.forEach((option, index) => {
-                optionsHtml += `
-                    <div class="flex items-center p-3 bg-gray-50 rounded-lg mb-2">
-                        ${option.option_image ? 
-                            `<img src="${option.option_image}" alt="${option.option_text}" 
-                                  class="w-12 h-12 object-cover rounded mr-3">` : 
-                            `<div class="w-12 h-12 bg-blue-100 rounded flex items-center justify-center mr-3">
-                                <span class="material-icons text-blue-600">description</span>
-                            </div>`
-                        }
-                        <div>
-                            <span class="font-medium text-gray-700">Option ${index + 1}:</span>
-                            <span class="text-gray-600 ml-2">${option.option_text}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            showMessage('info', `
-                <div class="text-left">
-                    <h4 class="font-bold text-gray-800 mb-2">Toutes les options de "${poll.title}"</h4>
-                    <div class="max-h-60 overflow-y-auto">
-                        ${optionsHtml}
-                    </div>
-                    <p class="text-sm text-gray-500 mt-2">Total: ${poll.options.length} options</p>
-                </div>
-            `);
+        function selectOption(element, isSingle) {
+            if (isSingle) {
+                document.querySelectorAll('.vote-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                element.classList.add('selected');
+                const radio = element.querySelector('input[type="radio"]');
+                if (radio) radio.checked = true;
+            } else {
+                element.classList.toggle('selected');
+                const checkbox = element.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = !checkbox.checked;
+            }
         }
 
         function formatDate(dateString) {
