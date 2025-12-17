@@ -6,6 +6,9 @@ const cors = require('cors');
 const path = require('path');
 const crypto = require('crypto');
 const emailService = require('./emailService');
+const session = require('express-session');
+const jwt = require('jsonwebtoken');
+const expressLayouts = require('express-ejs-layouts');
 require('dotenv').config();
 
 const app = express();
@@ -16,6 +19,17 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
+
+// Configuration des sessions
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'ivote_secret_key_2024',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: false,
+        maxAge: 24 * 60 * 60 * 1000
+    }
+}));
 
 // Configuration de la base de données
 const dbConfig = {
@@ -34,7 +48,6 @@ let pool;
 async function createPool() {
     pool = mysql.createPool(dbConfig);
     
-    // Tester la connexion
     try {
         const connection = await pool.getConnection();
         console.log('✅ Connecté à la base de données MySQL');
@@ -44,20 +57,50 @@ async function createPool() {
         process.exit(1);
     }
 }
+// Configuration EJS avec layouts (ORDRE IMPORTANT!)
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(expressLayouts);
+app.set('layout', 'layouts/main'); // Layout par défaut
+// Middleware pour injecter les données utilisateur
 
-// Fonction pour générer un token sécurisé
+app.use(async (req, res, next) => {
+    if (req.session.userId) {
+        try {
+            const [users] = await pool.execute(
+                'SELECT id, prenom, nom, email, created_at FROM users WHERE id = ?',
+                [req.session.userId]
+            );
+            if (users.length > 0) {
+                req.user = users[0];
+            }
+        } catch (error) {
+            console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+        }
+    }
+    next();
+});
+
+// Middleware d'authentification
+const requireAuth = (req, res, next) => {
+    if (req.session.userId && req.user) {
+        next();
+    } else {
+        res.redirect('/');
+    }
+};
+
+// Fonctions utilitaires
 function generateVerificationToken() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-// Calculer la date d'expiration (24 heures)
 function getExpirationDate() {
     const expires = new Date();
     expires.setHours(expires.getHours() + 24);
     return expires;
 }
 
-// Nettoyer les inscriptions expirées (cron job)
 async function cleanExpiredRegistrations() {
     try {
         const [result] = await pool.execute(
@@ -71,70 +114,287 @@ async function cleanExpiredRegistrations() {
     }
 }
 
-// Routes
+// ==================== ROUTES STATIQUES ====================
 
-// Page d'inscription
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'connexion.html'));
+    if (req.session.userId && req.user) {
+        res.redirect('/dashboard');
+    } else {
+        res.sendFile(path.join(__dirname, 'public', 'connexion.html'));
+    }
 });
 
-// Page de vérification email
+app.get('/inscription', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'inscription.html'));
+});
+
 app.get('/verify-email', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'verify-email.html'));
 });
 
-// Page de confirmation
 app.get('/verification-success', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'verification-success.html'));
 });
 
-// Page d'attente de vérification
 app.get('/waiting-verification', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'waiting-verification.html'));
 });
 
-// Route d'inscription (Nouvelle logique)
+app.get('/reset-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'reset-password.html'));
+});
+
+app.get('/forgot-password', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
+});
+
+// ==================== ROUTES DASHBOARD ====================
+
+app.get('/dashboard', requireAuth, async (req, res) => {
+    try {
+        const [users] = await pool.execute(
+            'SELECT id, prenom, nom, email, created_at FROM users WHERE id = ?',
+            [req.session.userId]
+        );
+
+        if (users.length === 0) {
+            req.session.destroy();
+            return res.redirect('/');
+        }
+
+        const user = users[0];
+        
+        res.render('dashboard/dashboard', {
+            title: 'Tableau de bord',
+            page: 'dashboard',
+            user: {
+                name: `${user.prenom} ${user.nom}`,
+                email: user.email,
+                prenom: user.prenom,
+                nom: user.nom,
+                joinDate: new Date(user.created_at).toLocaleDateString('fr-FR')
+            },
+            stats: {
+                totalVotes: 0,
+                activePolls: 0,
+                completedPolls: 0
+            }
+        });
+    } catch (error) {
+        console.error('❌ Erreur lors du chargement du dashboard:', error);
+        res.status(500).send('Erreur lors du chargement du dashboard');
+    }
+});
+
+app.get('/vote', requireAuth, (req, res) => {
+    res.render('dashboard/vote', {
+        title: 'Voter',
+        page: 'vote',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+app.get('/poll/create', requireAuth, (req, res) => {
+    res.render('dashboard/create-poll', {
+        title: 'Créer un sondage',
+        page: 'create-poll',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+app.get('/rooms', requireAuth, (req, res) => {
+    res.render('dashboard/rooms', {
+        title: 'Rooms',
+        page: 'rooms',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+app.get('/results', requireAuth, (req, res) => {
+    res.render('dashboard/results', {
+        title: 'Résultats',
+        page: 'results',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+app.get('/settings', requireAuth, (req, res) => {
+    res.render('dashboard/settings', {
+        title: 'Paramètres',
+        page: 'settings',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+app.get('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('❌ Erreur lors de la déconnexion:', err);
+        }
+        res.redirect('/');
+    });
+});
+// Route Explorer
+app.get('/explorer', requireAuth, (req, res) => {
+    res.render('dashboard/explorer', {
+        title: 'Explorer',
+        page: 'explorer',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+// Route Notifications
+app.get('/notifications', requireAuth, (req, res) => {
+    res.render('dashboard/notifications', {
+        title: 'Notifications',
+        page: 'notifications',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+// Route Statistiques
+app.get('/statistics', requireAuth, (req, res) => {
+    res.render('dashboard/statistics', {
+        title: 'Statistiques',
+        page: 'statistics',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+// Route Sondages (remplace /poll/create)
+app.get('/polls', requireAuth, (req, res) => {
+    res.render('dashboard/polls', {
+        title: 'Mes Sondages',
+        page: 'polls',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+// Route Profil
+app.get('/profile', requireAuth, (req, res) => {
+    res.render('dashboard/profile', {
+        title: 'Mon Profil',
+        page: 'profile',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR'),
+            telephone: req.user.telephone || 'Non renseigné',
+            countryCode: req.user.country_code || '+33'
+        }
+    });
+});
+
+// Route Édition Profil
+app.get('/profile/edit', requireAuth, (req, res) => {
+    res.render('dashboard/edit-profile', {
+        title: 'Modifier Profil',
+        page: 'edit-profile',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR'),
+            telephone: req.user.telephone || '',
+            countryCode: req.user.country_code || '+33'
+        }
+    });
+});
+
+// Route Recherche
+app.get('/search', requireAuth, (req, res) => {
+    const query = req.query.q || '';
+    res.render('dashboard/search', {
+        title: `Résultats pour "${query}"`,
+        page: 'search',
+        query: query,
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+// ==================== ROUTES API ====================
+
+// Route d'inscription
 app.post('/api/register', async (req, res) => {
     console.log('📨 Nouvelle inscription reçue:', { ...req.body, password: '***' });
     
     const { prenom, nom, countryCode, telephone, email, password, confirmPassword, terms } = req.body;
 
-    // Validation côté serveur
     const errors = [];
-
-    // Validation des noms
     const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/;
-    if (!prenom || !nameRegex.test(prenom)) {
-        errors.push('Prénom invalide');
-    }
-    if (!nom || !nameRegex.test(nom)) {
-        errors.push('Nom invalide');
-    }
-
-    // Validation téléphone
     const phoneRegex = /^[0-9\s]{9,15}$/;
-    if (!telephone || !phoneRegex.test(telephone.replace(/\s/g, ''))) {
-        errors.push('Numéro de téléphone invalide');
-    }
-
-    // Validation email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email)) {
-        errors.push('Email invalide');
-    }
 
-    // Validation mot de passe
-    if (!password || password.length < 8) {
-        errors.push('Le mot de passe doit contenir au moins 8 caractères');
-    }
-    if (password !== confirmPassword) {
-        errors.push('Les mots de passe ne correspondent pas');
-    }
-
-    // Validation des termes
-    if (!terms || (terms !== true && terms !== 'true' && terms !== 1 && terms !== '1')) {
-        errors.push('Vous devez accepter les conditions');
-    }
+    if (!prenom || !nameRegex.test(prenom)) errors.push('Prénom invalide');
+    if (!nom || !nameRegex.test(nom)) errors.push('Nom invalide');
+    if (!telephone || !phoneRegex.test(telephone.replace(/\s/g, ''))) errors.push('Numéro de téléphone invalide');
+    if (!email || !emailRegex.test(email)) errors.push('Email invalide');
+    if (!password || password.length < 8) errors.push('Le mot de passe doit contenir au moins 8 caractères');
+    if (password !== confirmPassword) errors.push('Les mots de passe ne correspondent pas');
+    if (!terms || (terms !== true && terms !== 'true' && terms !== 1 && terms !== '1')) errors.push('Vous devez accepter les conditions');
 
     if (errors.length > 0) {
         console.log('❌ Erreurs de validation:', errors);
@@ -142,7 +402,6 @@ app.post('/api/register', async (req, res) => {
     }
 
     try {
-        // Vérifier si l'email est déjà dans les utilisateurs vérifiés
         const [existingUsers] = await pool.execute(
             'SELECT id FROM users WHERE email = ? OR telephone = ?',
             [email, telephone]
@@ -155,7 +414,6 @@ app.post('/api/register', async (req, res) => {
             });
         }
 
-        // Vérifier si une inscription en attente existe déjà
         const [existingPending] = await pool.execute(
             'SELECT id, expires_at FROM pending_registrations WHERE email = ?',
             [email]
@@ -167,13 +425,11 @@ app.post('/api/register', async (req, res) => {
             const now = new Date();
             
             if (now < expiresAt) {
-                // Inscription encore valide
                 return res.status(400).json({ 
                     success: false, 
                     errors: ['Une inscription est déjà en attente pour cet email. Vérifiez vos emails.'] 
                 });
             } else {
-                // Inscription expirée, on la supprime
                 await pool.execute(
                     'DELETE FROM pending_registrations WHERE id = ?',
                     [pending.id]
@@ -181,14 +437,10 @@ app.post('/api/register', async (req, res) => {
             }
         }
 
-        // Hachage du mot de passe
         const hashedPassword = await bcrypt.hash(password, 10);
-        
-        // Générer le token de vérification
         const verificationToken = generateVerificationToken();
         const expiresAt = getExpirationDate();
 
-        // Enregistrer dans pending_registrations (pas dans users)
         const [result] = await pool.execute(
             `INSERT INTO pending_registrations 
             (prenom, nom, country_code, telephone, email, password, verification_token, expires_at) 
@@ -198,7 +450,6 @@ app.post('/api/register', async (req, res) => {
 
         const pendingId = result.insertId;
 
-        // Enregistrer l'action d'audit
         await pool.execute(
             'INSERT INTO registration_audit (email, action) VALUES (?, ?)',
             [email, 'pending']
@@ -206,7 +457,6 @@ app.post('/api/register', async (req, res) => {
 
         console.log(`✅ Inscription en attente créée (ID: ${pendingId}) pour: ${email}`);
 
-        // Envoyer l'email de vérification
         const emailResult = await emailService.sendVerificationEmail(email, verificationToken, prenom);
 
         if (!emailResult.success) {
@@ -230,7 +480,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// Route de vérification d'email (Nouvelle logique)
+// Route de vérification d'email
 app.get('/api/verify-email', async (req, res) => {
     const { token } = req.query;
 
@@ -242,7 +492,6 @@ app.get('/api/verify-email', async (req, res) => {
     }
 
     try {
-        // Vérifier si le token existe dans pending_registrations
         const [pendingRows] = await pool.execute(
             `SELECT * FROM pending_registrations 
              WHERE verification_token = ?`,
@@ -260,9 +509,7 @@ app.get('/api/verify-email', async (req, res) => {
         const now = new Date();
         const expiresAt = new Date(pendingUser.expires_at);
 
-        // Vérifier si le token est expiré
         if (now > expiresAt) {
-            // Supprimer l'inscription expirée
             await pool.execute(
                 'DELETE FROM pending_registrations WHERE id = ?',
                 [pendingUser.id]
@@ -279,14 +526,12 @@ app.get('/api/verify-email', async (req, res) => {
             });
         }
 
-        // Vérifier si l'email ou téléphone existe déjà dans users (cas rare)
         const [existingUsers] = await pool.execute(
             'SELECT id FROM users WHERE email = ? OR telephone = ?',
             [pendingUser.email, pendingUser.telephone]
         );
 
         if (existingUsers.length > 0) {
-            // Supprimer l'inscription en attente
             await pool.execute(
                 'DELETE FROM pending_registrations WHERE id = ?',
                 [pendingUser.id]
@@ -298,7 +543,6 @@ app.get('/api/verify-email', async (req, res) => {
             });
         }
 
-        // Créer l'utilisateur dans la table users
         const [userResult] = await pool.execute(
             `INSERT INTO users 
             (prenom, nom, country_code, telephone, email, password, verified_at) 
@@ -315,13 +559,11 @@ app.get('/api/verify-email', async (req, res) => {
 
         const userId = userResult.insertId;
 
-        // Supprimer l'inscription en attente
         await pool.execute(
             'DELETE FROM pending_registrations WHERE id = ?',
             [pendingUser.id]
         );
 
-        // Enregistrer l'action d'audit
         await pool.execute(
             'INSERT INTO registration_audit (email, action) VALUES (?, ?)',
             [pendingUser.email, 'verified']
@@ -329,7 +571,6 @@ app.get('/api/verify-email', async (req, res) => {
 
         console.log(`✅ Utilisateur créé (ID: ${userId}) après vérification: ${pendingUser.email}`);
 
-        // Envoyer un email de bienvenue
         await emailService.sendWelcomeEmail(pendingUser.email, pendingUser.prenom);
 
         res.json({
@@ -350,6 +591,114 @@ app.get('/api/verify-email', async (req, res) => {
             message: 'Erreur serveur lors de la vérification'
         });
     }
+});
+
+// Route de connexion
+app.post('/api/login', async (req, res) => {
+    console.log('🔑 Tentative de connexion reçue:', { email: req.body.email, password: '***' });
+    
+    const { email, password, remember } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Email et mot de passe requis' 
+        });
+    }
+
+    try {
+        const [users] = await pool.execute(
+            'SELECT id, prenom, nom, email, password, verified_at, created_at FROM users WHERE email = ?',
+            [email]
+        );
+
+        if (users.length === 0) {
+            console.log('❌ Utilisateur non trouvé:', email);
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Email ou mot de passe incorrect' 
+            });
+        }
+
+        const user = users[0];
+
+        if (!user.verified_at) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Veuillez vérifier votre email avant de vous connecter' 
+            });
+        }
+
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        
+        if (!passwordMatch) {
+            console.log('❌ Mot de passe incorrect pour:', email);
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Email ou mot de passe incorrect' 
+            });
+        }
+
+        // Créer la session
+        req.session.userId = user.id;
+        req.session.userEmail = user.email;
+        req.session.userName = `${user.prenom} ${user.nom}`;
+        req.user = user; // Ajouter l'utilisateur à la requête
+        
+        if (remember) {
+            req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+        }
+
+        console.log('✅ Connexion réussie pour:', email);
+        console.log('   Session créée:', req.session.userId);
+
+        // Créer un token JWT également si nécessaire
+        const tokenPayload = {
+            id: user.id,
+            email: user.email,
+            prenom: user.prenom,
+            nom: user.nom
+        };
+
+        const token = jwt.sign(
+            tokenPayload, 
+            process.env.JWT_SECRET || 'votre_secret_jwt',
+            { expiresIn: remember ? '30d' : '24h' }
+        );
+
+        res.json({
+            success: true,
+            message: 'Connexion réussie',
+            token: token,
+            redirect: '/dashboard',
+            user: {
+                id: user.id,
+                prenom: user.prenom,
+                nom: user.nom,
+                email: user.email,
+                created_at: user.created_at
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la connexion:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur lors de la connexion'
+        });
+    }
+});
+
+// Route pour vérifier le statut d'authentification
+app.get('/api/auth/status', (req, res) => {
+    res.json({
+        isAuthenticated: !!req.session.userId,
+        user: req.session.userId ? {
+            id: req.session.userId,
+            email: req.session.userEmail,
+            name: req.session.userName
+        } : null
+    });
 });
 
 // Route pour vérifier le statut d'une inscription en attente
@@ -385,7 +734,7 @@ app.post('/api/check-pending-status', async (req, res) => {
             isValid: isValid,
             created_at: pending.created_at,
             expires_at: pending.expires_at,
-            expires_in: Math.max(0, Math.floor((expiresAt - now) / 1000 / 60)) // en minutes
+            expires_in: Math.max(0, Math.floor((expiresAt - now) / 1000 / 60))
         });
 
     } catch (error) {
@@ -406,7 +755,6 @@ app.post('/api/resend-verification', async (req, res) => {
     }
 
     try {
-        // Vérifier si l'inscription en attente existe
         const [pendingRows] = await pool.execute(
             'SELECT id, prenom, verification_token, expires_at FROM pending_registrations WHERE email = ?',
             [email]
@@ -423,7 +771,6 @@ app.post('/api/resend-verification', async (req, res) => {
         const now = new Date();
         const expiresAt = new Date(pending.expires_at);
 
-        // Vérifier si l'inscription est encore valide
         if (now > expiresAt) {
             return res.status(400).json({ 
                 success: false, 
@@ -431,11 +778,9 @@ app.post('/api/resend-verification', async (req, res) => {
             });
         }
 
-        // Générer un nouveau token
         const newToken = generateVerificationToken();
         const newExpiresAt = getExpirationDate();
 
-        // Mettre à jour le token
         await pool.execute(
             `UPDATE pending_registrations 
              SET verification_token = ?, expires_at = ? 
@@ -443,7 +788,6 @@ app.post('/api/resend-verification', async (req, res) => {
             [newToken, newExpiresAt, pending.id]
         );
 
-        // Envoyer le nouvel email
         const emailResult = await emailService.sendVerificationEmail(
             email, 
             newToken, 
@@ -472,17 +816,6 @@ app.post('/api/resend-verification', async (req, res) => {
     }
 });
 
-// Route pour nettoyer manuellement les inscriptions expirées
-app.post('/api/clean-expired', async (req, res) => {
-    try {
-        await cleanExpiredRegistrations();
-        res.json({ success: true, message: 'Nettoyage terminé' });
-    } catch (error) {
-        console.error('❌ Erreur lors du nettoyage:', error);
-        res.status(500).json({ success: false, message: 'Erreur lors du nettoyage' });
-    }
-});
-
 // Route pour vérifier si un utilisateur existe
 app.post('/api/check-user-exists', async (req, res) => {
     const { email } = req.body;
@@ -493,7 +826,7 @@ app.post('/api/check-user-exists', async (req, res) => {
 
     try {
         const [users] = await pool.execute(
-            'SELECT id, email, prenom FROM users WHERE email = ?',
+            'SELECT id, email, prenom, created_at FROM users WHERE email = ?',
             [email]
         );
 
@@ -511,9 +844,93 @@ app.post('/api/check-user-exists', async (req, res) => {
     }
 });
 
-// ============================
-// ROUTES DE RÉINITIALISATION DE MOT DE PASSE
-// ============================
+// Route "Mot de passe oublié"
+app.post('/api/forgot-password', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Email requis' 
+        });
+    }
+
+    console.log('🔑 Demande de réinitialisation pour:', email);
+
+    try {
+        const [users] = await pool.execute(
+            'SELECT id, email, prenom FROM users WHERE email = ?',
+            [email]
+        );
+
+        if (users.length === 0) {
+            console.log('ℹ️ Email non trouvé, réponse générique envoyée');
+            return res.json({ 
+                success: true, 
+                message: 'Si cet email existe, vous recevrez un lien de réinitialisation' 
+            });
+        }
+
+        const user = users[0];
+        
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+        
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 1);
+
+        console.log('📝 Création token pour:', email);
+        console.log('   Token hash:', tokenHash.substring(0, 20) + '...');
+        console.log('   Expire à:', expiresAt);
+
+        await pool.execute(
+            'DELETE FROM password_reset_tokens WHERE user_id = ?',
+            [user.id]
+        );
+
+        await pool.execute(
+            `INSERT INTO password_reset_tokens 
+            (user_id, token_hash, expires_at) 
+            VALUES (?, ?, ?)`,
+            [user.id, tokenHash, expiresAt]
+        );
+
+        const appUrl = process.env.APP_URL || 'http://localhost:3000';
+        const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
+        
+        console.log('📧 Tentative d\'envoi email à:', email);
+        console.log('   Lien de réinitialisation:', resetLink);
+        
+        const emailResult = await emailService.sendPasswordResetEmail(email, resetLink, user.prenom);
+
+        if (emailResult.success) {
+            console.log('✅ Email envoyé avec succès');
+            res.json({
+                success: true,
+                message: 'Si cet email existe, vous recevrez un lien de réinitialisation'
+            });
+        } else {
+            console.warn('⚠️ Email non envoyé:', emailResult.error);
+            
+            await pool.execute(
+                'DELETE FROM password_reset_tokens WHERE token_hash = ?',
+                [tokenHash]
+            );
+            
+            res.status(500).json({
+                success: false,
+                message: 'Erreur lors de l\'envoi de l\'email. Veuillez réessayer.'
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la demande de réinitialisation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
 
 // Route de vérification de token de réinitialisation
 app.get('/api/verify-reset-token', async (req, res) => {
@@ -530,7 +947,6 @@ app.get('/api/verify-reset-token', async (req, res) => {
     }
 
     try {
-        // Hasher le token pour le comparer
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
         console.log('🔍 Recherche token hash:', tokenHash.substring(0, 20) + '...');
@@ -576,7 +992,6 @@ app.post('/api/reset-password', async (req, res) => {
 
     console.log('🔄 Réinitialisation mot de passe reçue');
 
-    // Validation
     if (!token || !newPassword || !confirmPassword) {
         return res.status(400).json({ 
             success: false, 
@@ -599,12 +1014,10 @@ app.post('/api/reset-password', async (req, res) => {
     }
 
     try {
-        // Hasher le token pour le comparer
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
         console.log('🔍 Vérification token pour réinitialisation:', tokenHash.substring(0, 20) + '...');
 
-        // Vérifier le token
         const [tokens] = await pool.execute(
             `SELECT prt.*, u.email, u.id as user_id
              FROM password_reset_tokens prt
@@ -621,17 +1034,13 @@ app.post('/api/reset-password', async (req, res) => {
         }
 
         const resetToken = tokens[0];
-
-        // Hasher le nouveau mot de passe
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-        // Mettre à jour le mot de passe de l'utilisateur
         await pool.execute(
             'UPDATE users SET password = ? WHERE id = ?',
             [hashedPassword, resetToken.user_id]
         );
 
-        // Marquer le token comme utilisé
         await pool.execute(
             'UPDATE password_reset_tokens SET used = 1 WHERE id = ?',
             [resetToken.id]
@@ -653,226 +1062,58 @@ app.post('/api/reset-password', async (req, res) => {
     }
 });
 
+// Route pour nettoyer manuellement les inscriptions expirées
+app.post('/api/clean-expired', async (req, res) => {
+    try {
+        await cleanExpiredRegistrations();
+        res.json({ success: true, message: 'Nettoyage terminé' });
+    } catch (error) {
+        console.error('❌ Erreur lors du nettoyage:', error);
+        res.status(500).json({ success: false, message: 'Erreur lors du nettoyage' });
+    }
+});
+
+// Route pour vérifier le statut de la base de données
+app.get('/api/health', async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT 1');
+        res.json({ 
+            status: 'healthy',
+            database: 'connected',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'unhealthy',
+            database: 'disconnected',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // Démarrer le serveur
 async function startServer() {
     await createPool();
     
-    // Nettoyer les inscriptions expirées au démarrage
     await cleanExpiredRegistrations();
     
-    // Nettoyer toutes les heures
     setInterval(cleanExpiredRegistrations, 60 * 60 * 1000);
     
-    // Tester la connexion email
     const emailConnected = await emailService.verifyConnection();
     
     app.listen(PORT, () => {
         console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
-        console.log(`📝 Page d'inscription: http://localhost:${PORT}/`);
+        console.log(`📝 Page de connexion: http://localhost:${PORT}/`);
+        console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
+        console.log(`📝 Page d'inscription: http://localhost:${PORT}/inscription`);
         console.log(`⏳ Page d'attente: http://localhost:${PORT}/waiting-verification`);
         console.log(`📧 Vérification email: ${emailConnected ? '✅ Activée' : '⚠️ Simulation'}`);
+        console.log(`🔐 Système de session: ✅ Activé`);
+        console.log(`🏗️  Structure EJS avec layouts: ✅ Activé`);
+        console.log(`📊 Routes dashboard: /dashboard, /vote, /poll/create, /rooms, /results, /settings`);
+        console.log(`📁 Layout principal: views/layouts/main.ejs`);
     });
 }
 
 startServer().catch(console.error);
-//_________________________________________________________________________________________
-// Route de connexion (Nouvelle route)
-app.post('/api/login', async (req, res) => {
-    console.log('🔑 Tentative de connexion reçue:', { email: req.body.email, password: '***' });
-    
-    const { email, password, remember } = req.body;
-
-    // Validation basique
-    if (!email || !password) {
-        return res.status(400).json({ 
-            success: false, 
-            message: 'Email et mot de passe requis' 
-        });
-    }
-
-    try {
-        // Rechercher l'utilisateur dans la base de données
-        const [users] = await pool.execute(
-            'SELECT id, prenom, nom, email, password, verified_at FROM users WHERE email = ?',
-            [email]
-        );
-
-        if (users.length === 0) {
-            console.log('❌ Utilisateur non trouvé:', email);
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Email ou mot de passe incorrect' 
-            });
-        }
-
-        const user = users[0];
-
-        // Vérifier si le compte est vérifié
-        if (!user.verified_at) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Veuillez vérifier votre email avant de vous connecter' 
-            });
-        }
-
-        // Vérifier le mot de passe
-        const passwordMatch = await bcrypt.compare(password, user.password);
-        
-        if (!passwordMatch) {
-            console.log('❌ Mot de passe incorrect pour:', email);
-            return res.status(401).json({ 
-                success: false, 
-                message: 'Email ou mot de passe incorrect' 
-            });
-        }
-
-        // Créer une session JWT (ou autre système de session)
-        const tokenPayload = {
-            id: user.id,
-            email: user.email,
-            prenom: user.prenom,
-            nom: user.nom
-        };
-
-        // Créer un token JWT
-        const jwt = require('jsonwebtoken');
-        const token = jwt.sign(
-            tokenPayload, 
-            process.env.JWT_SECRET || 'votre_secret_jwt',
-            { expiresIn: remember ? '30d' : '24h' } // "Remember me" pour 30 jours
-        );
-
-        console.log('✅ Connexion réussie pour:', email);
-
-        // Réponse de succès
-        res.json({
-            success: true,
-            message: 'Connexion réussie',
-            token: token,
-            user: {
-                id: user.id,
-                prenom: user.prenom,
-                nom: user.nom,
-                email: user.email
-            },
-            remember: remember || false
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur lors de la connexion:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur lors de la connexion'
-        });
-    }
-});
-
-
-// Page de réinitialisation de mot de passe
-app.get('/reset-password', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'reset-password.html'));
-});
-
-// Page "Mot de passe oublié" (optionnel)
-app.get('/forgot-password', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
-});
-
-//_____________________________________________________________________________________
-// Route "Mot de passe oublié" - AJOUTEZ SI MANQUANTE
-app.post('/api/forgot-password', async (req, res) => {
-    const { email } = req.body;
-
-    if (!email) {
-        return res.status(400).json({ 
-            success: false, 
-            message: 'Email requis' 
-        });
-    }
-
-    console.log('🔑 Demande de réinitialisation pour:', email);
-
-    try {
-        // Vérifier si l'utilisateur existe
-        const [users] = await pool.execute(
-            'SELECT id, email, prenom FROM users WHERE email = ?',
-            [email]
-        );
-
-        if (users.length === 0) {
-            // Pour la sécurité, ne pas révéler que l'email n'existe pas
-            console.log('ℹ️ Email non trouvé, réponse générique envoyée');
-            return res.json({ 
-                success: true, 
-                message: 'Si cet email existe, vous recevrez un lien de réinitialisation' 
-            });
-        }
-
-        const user = users[0];
-        
-        // Générer un token de réinitialisation
-        const crypto = require('crypto');
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-        
-        // Date d'expiration (1 heure)
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 1);
-
-        console.log('📝 Création token pour:', email);
-        console.log('   Token hash:', tokenHash.substring(0, 20) + '...');
-        console.log('   Expire à:', expiresAt);
-
-        // Supprimer les anciens tokens pour cet utilisateur
-        await pool.execute(
-            'DELETE FROM password_reset_tokens WHERE user_id = ?',
-            [user.id]
-        );
-
-        // Stocker le token dans la base de données
-        await pool.execute(
-            `INSERT INTO password_reset_tokens 
-            (user_id, token_hash, expires_at) 
-            VALUES (?, ?, ?)`,
-            [user.id, tokenHash, expiresAt]
-        );
-
-        // Envoyer l'email de réinitialisation
-        const appUrl = process.env.APP_URL || 'http://localhost:3000';
-        const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
-        
-        console.log('📧 Tentative d\'envoi email à:', email);
-        console.log('   Lien de réinitialisation:', resetLink);
-        
-        // Utiliser votre service email
-        const emailResult = await emailService.sendPasswordResetEmail(email, resetLink, user.prenom);
-
-        if (emailResult.success) {
-            console.log('✅ Email envoyé avec succès');
-            res.json({
-                success: true,
-                message: 'Si cet email existe, vous recevrez un lien de réinitialisation'
-            });
-        } else {
-            console.warn('⚠️ Email non envoyé:', emailResult.error);
-            
-            // Supprimer le token si l'email n'a pas pu être envoyé
-            await pool.execute(
-                'DELETE FROM password_reset_tokens WHERE token_hash = ?',
-                [tokenHash]
-            );
-            
-            res.status(500).json({
-                success: false,
-                message: 'Erreur lors de l\'envoi de l\'email. Veuillez réessayer.'
-            });
-        }
-
-    } catch (error) {
-        console.error('❌ Erreur lors de la demande de réinitialisation:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});

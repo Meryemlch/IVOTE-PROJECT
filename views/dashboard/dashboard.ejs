@@ -1,0 +1,192 @@
+<!-- STATISTIQUES -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="stat-card bg-white rounded-xl shadow p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-sm">Total des votes</p>
+                <h3 class="text-3xl font-bold mt-2"><%= stats.totalVotes %></h3>
+            </div>
+            <div class="p-3 bg-blue-50 rounded-lg">
+                <span class="material-icons text-blue-600 text-2xl">how_to_vote</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card bg-white rounded-xl shadow p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-sm">Sondages actifs</p>
+                <h3 class="text-3xl font-bold mt-2"><%= stats.activePolls %></h3>
+            </div>
+            <div class="p-3 bg-green-50 rounded-lg">
+                <span class="material-icons text-green-600 text-2xl">dynamic_feed</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card bg-white rounded-xl shadow p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-sm">Sondages terminés</p>
+                <h3 class="text-3xl font-bold mt-2"><%= stats.completedPolls %></h3>
+            </div>
+            <div class="p-3 bg-purple-50 rounded-lg">
+                <span class="material-icons text-purple-600 text-2xl">check_circle</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GRAPHIQUE -->
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold">Activité de vote</h2>
+        <select class="border rounded-lg px-3 py-2 text-sm">
+            <option>7 derniers jours</option>
+            <option>30 derniers jours</option>
+            <option>3 derniers mois</option>
+        </select>
+    </div>
+    <div class="h-64">
+        <canvas id="voteChart"></canvas>
+    </div>
+</div>
+
+<!-- SONDAGES RECENTS -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- SONDAGES ACTIFS -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h2 class="text-xl font-bold mb-6">Sondages actifs</h2>
+        <div class="space-y-4">
+            <div class="voting-card bg-gray-50 rounded-lg p-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="font-bold">Élection présidentielle</h3>
+                        <p class="text-gray-500 text-sm">Clôture: 15/12/2024</p>
+                    </div>
+                    <span class="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full">Actif</span>
+                </div>
+                <div class="mt-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>Participation</span>
+                        <span>65%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: 65%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="voting-card bg-gray-50 rounded-lg p-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="font-bold">Réunion de quartier</h3>
+                        <p class="text-gray-500 text-sm">Clôture: 20/12/2024</p>
+                    </div>
+                    <span class="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full">Actif</span>
+                </div>
+                <div class="mt-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>Participation</span>
+                        <span>42%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: 42%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ACTIONS RAPIDES -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h2 class="text-xl font-bold mb-6">Actions rapides</h2>
+        <div class="space-y-4">
+            <a href="/poll/create" class="flex items-center p-4 border-2 border-dashed border-indigo-200 rounded-lg hover:border-indigo-400 transition-colors">
+                <span class="material-icons text-indigo-600 mr-4">add_circle</span>
+                <div>
+                    <h3 class="font-bold">Créer un sondage</h3>
+                    <p class="text-gray-500 text-sm">Lancez un nouveau vote</p>
+                </div>
+            </a>
+            
+            <a href="/rooms" class="flex items-center p-4 border-2 border-dashed border-blue-200 rounded-lg hover:border-blue-400 transition-colors">
+                <span class="material-icons text-blue-600 mr-4">meeting_room</span>
+                <div>
+                    <h3 class="font-bold">Créer une room</h3>
+                    <p class="text-gray-500 text-sm">Organisez un vote en direct</p>
+                </div>
+            </a>
+            
+            <a href="/results" class="flex items-center p-4 border-2 border-dashed border-green-200 rounded-lg hover:border-green-400 transition-colors">
+                <span class="material-icons text-green-600 mr-4">bar_chart</span>
+                <div>
+                    <h3 class="font-bold">Voir les résultats</h3>
+                    <p class="text-gray-500 text-sm">Consultez les statistiques</p>
+                </div>
+            </a>
+        </div>
+        
+        <!-- NOTIFICATIONS -->
+        <div class="mt-8">
+            <h3 class="font-bold mb-4">Notifications récentes</h3>
+            <div class="space-y-3">
+                <div class="flex items-center p-3 bg-blue-50 rounded-lg">
+                    <span class="material-icons text-blue-600 mr-3 text-sm">notifications</span>
+                    <span class="text-sm">Nouveau sondage disponible</span>
+                </div>
+                <div class="flex items-center p-3 bg-green-50 rounded-lg">
+                    <span class="material-icons text-green-600 mr-3 text-sm">check_circle</span>
+                    <span class="text-sm">Votre vote a été enregistré</span>
+                </div>
+                <div class="flex items-center p-3 bg-yellow-50 rounded-lg">
+                    <span class="material-icons text-yellow-600 mr-3 text-sm">warning</span>
+                    <span class="text-sm">Sondage expirant bientôt</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT POUR LE GRAPHIQUE -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('voteChart').getContext('2d');
+        const voteChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+                datasets: [{
+                    label: 'Votes',
+                    data: [12, 19, 8, 15, 22, 18, 25],
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>

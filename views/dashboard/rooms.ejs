@@ -1,0 +1,181 @@
+<!-- Contenu spécifique aux résultats -->
+<div class="space-y-8">
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Résultats des votes</h1>
+            <p class="text-gray-500">Consultez les résultats des sondages passés</p>
+        </div>
+        <div class="flex space-x-4">
+            <select class="p-2 border border-gray-300 rounded-lg">
+                <option>Tous les sondages</option>
+                <option>Mes sondages</option>
+                <option>Ce mois</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Graphique principal -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Statistiques globales</h2>
+        <div class="h-96">
+            <canvas id="resultsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Détails des résultats -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Résultats récents -->
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Résultats récents</h2>
+            <div class="space-y-4">
+                <div class="p-4 border rounded-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-gray-800">Élection présidentielle</h3>
+                        <span class="text-sm text-gray-500">15/12/2024</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Candidate A</span>
+                            <span class="font-bold">45% (68 votes)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: 45%"></div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Candidate B</span>
+                            <span class="font-bold">35% (53 votes)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-600 h-2 rounded-full" style="width: 35%"></div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Candidate C</span>
+                            <span class="font-bold">20% (31 votes)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-yellow-600 h-2 rounded-full" style="width: 20%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 border rounded-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-gray-800">Choix du restaurant</h3>
+                        <span class="text-sm text-gray-500">01/12/2024</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Italien</span>
+                            <span class="font-bold">55% (10 votes)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: 55%"></div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Français</span>
+                            <span class="font-bold">28% (5 votes)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-600 h-2 rounded-full" style="width: 28%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Résumé statistique -->
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Résumé statistique</h2>
+            <div class="space-y-6">
+                <div>
+                    <h3 class="font-bold text-gray-700 mb-2">Participation moyenne</h3>
+                    <div class="text-3xl font-bold text-indigo-600">72%</div>
+                    <p class="text-gray-500 text-sm">Sur les 15 derniers sondages</p>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <h3 class="font-bold text-gray-700 mb-2">Taux de réponse</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Moins de 24h</span>
+                            <span class="font-bold">68%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>24-48h</span>
+                            <span class="font-bold">25%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Plus de 48h</span>
+                            <span class="font-bold">7%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <h3 class="font-bold text-gray-700 mb-2">Top catégories</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-blue-600 rounded-full mr-2"></div>
+                            <span>Décisions d'équipe (42%)</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-green-600 rounded-full mr-2"></div>
+                            <span>Événements sociaux (28%)</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-yellow-600 rounded-full mr-2"></div>
+                            <span>Projets (18%)</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-purple-600 rounded-full mr-2"></div>
+                            <span>Autres (12%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Graphique des résultats
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('resultsChart').getContext('2d');
+        const resultsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],
+                datasets: [{
+                    label: 'Sondages créés',
+                    data: [5, 8, 12, 6, 9, 15, 10, 7, 13, 11, 8, 6],
+                    backgroundColor: '#6366f1',
+                    borderColor: '#4f46e5',
+                    borderWidth: 1
+                }, {
+                    label: 'Votes totaux',
+                    data: [45, 68, 120, 52, 85, 150, 95, 62, 130, 105, 75, 48],
+                    backgroundColor: '#10b981',
+                    borderColor: '#059669',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+    });
+</script>

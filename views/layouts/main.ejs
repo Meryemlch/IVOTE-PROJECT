@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> | iVote</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body {
+            background: #f5f7ff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .sidebar-btn {
+            transition: all 0.3s ease;
+        }
+        .sidebar-btn:hover {
+            background: #f1f5f9;
+        }
+        .sidebar-btn.active {
+            background: #6366f1;
+            color: white;
+        }
+        .stat-card {
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .voting-card {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .voting-card:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+        }
+        .option-selected {
+            background-color: #6366f1 !important;
+            color: white !important;
+            border-color: #6366f1 !important;
+        }
+        .notification-dot {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+        }
+        .user-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            z-index: 50;
+        }
+        .user-menu.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen">
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-white shadow-lg p-5 flex flex-col">
+        <!-- LOGO -->
+        <div class="text-center mb-8 pt-4">
+            <h1 class="text-2xl font-bold text-indigo-600">iVote</h1>
+            <p class="text-gray-500 text-sm">Système de vote en ligne</p>
+        </div>
+
+        <!-- USER PROFILE -->
+        <div class="text-center mb-8">
+            <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" 
+                 class="w-16 h-16 mx-auto rounded-full border-2 border-indigo-100" />
+            <h2 class="mt-3 font-bold"><%= user.name %></h2>
+            <p class="text-gray-500 text-sm"><%= user.email %></p>
+            <p class="text-gray-400 text-xs mt-1">Membre depuis <%= user.joinDate %></p>
+        </div>
+
+        <!-- MENU -->
+        <nav class="flex-1">
+            <div class="space-y-1">
+                <a href="/dashboard" class="sidebar-btn flex items-center px-4 py-3 rounded-lg <%= page === 'dashboard' ? 'active' : '' %>">
+                    <span class="material-icons mr-3">dashboard</span> Dashboard
+                </a>
+                
+                <a href="/explorer" class="sidebar-btn flex items-center px-4 py-3 rounded-lg <%= page === 'explorer' ? 'active' : '' %>">
+                    <span class="material-icons mr-3">explore</span> Explorer
+                </a>
+                
+                <a href="/vote" class="sidebar-btn flex items-center px-4 py-3 rounded-lg <%= page === 'vote' ? 'active' : '' %>">
+                    <span class="material-icons mr-3">how_to_vote</span> Voter
+                </a>
+                
+                <a href="/polls" class="sidebar-btn flex items-center px-4 py-3 rounded-lg <%= page === 'polls' ? 'active' : '' %>">
+                    <span class="material-icons mr-3">poll</span> Sondages
+                </a>
+                
+                <a href="/rooms" class="sidebar-btn flex items-center px-4 py-3 rounded-lg <%= page === 'rooms' ? 'active' : '' %>">
+                    <span class="material-icons mr-3">meeting_room</span> Rooms
+                </a>
+                
+                <a href="/results" class="sidebar-btn flex items-center px-4 py-3 rounded-lg <%= page === 'results' ? 'active' : '' %>">
+                    <span class="material-icons mr-3">bar_chart</span> Résultats
+                </a>
+                
+                <a href="/statistics" class="sidebar-btn flex items-center px-4 py-3 rounded-lg <%= page === 'statistics' ? 'active' : '' %>">
+                    <span class="material-icons mr-3">trending_up</span> Statistiques
+                </a>
+                
+                <a href="/settings" class="sidebar-btn flex items-center px-4 py-3 rounded-lg <%= page === 'settings' ? 'active' : '' %>">
+                    <span class="material-icons mr-3">settings</span> Paramètres
+                </a>
+            </div>
+        </nav>
+
+        <!-- LOGOUT -->
+        <div class="mt-auto pt-6 border-t">
+            <a href="/logout" class="sidebar-btn flex items-center px-4 py-3 rounded-lg text-red-600 hover:bg-red-50">
+                <span class="material-icons mr-3">logout</span> Déconnexion
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-8">
+        <!-- HEADER AVEC RECHERCHE -->
+        <header class="mb-8">
+            <div class="flex justify-between items-center">
+                <div class="flex-1 max-w-2xl">
+                    <div class="relative">
+                        <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
+                        <input 
+                            type="text" 
+                            placeholder="Rechercher des sondages, rooms, utilisateurs..." 
+                            class="w-full pl-10 pr-4 py-2 bg-white rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                            id="globalSearch"
+                        >
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 ml-4">
+                    <!-- Bouton Notifications -->
+                    <a href="/notifications" class="relative">
+                        <span class="material-icons text-gray-600 text-2xl hover:text-indigo-600 transition">notifications</span>
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">3</span>
+                    </a>
+                    
+                    <!-- Menu Utilisateur -->
+                    <div class="relative">
+                        <button 
+                            id="userMenuButton"
+                            class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 transition"
+                        >
+                            <span class="material-icons text-indigo-600">person</span>
+                        </button>
+                        
+                        <!-- Menu déroulant -->
+                        <div id="userMenu" class="user-menu bg-white shadow-lg rounded-lg w-48 mt-2 py-2">
+                            <div class="px-4 py-2 border-b">
+                                <p class="font-medium text-gray-800"><%= user.name %></p>
+                                <p class="text-sm text-gray-500 truncate"><%= user.email %></p>
+                            </div>
+                            <a href="/profile" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100">
+                                <span class="material-icons mr-3 text-sm">person_outline</span>
+                                Mon Profil
+                            </a>
+                            <a href="/profile/edit" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100">
+                                <span class="material-icons mr-3 text-sm">edit</span>
+                                Modifier Profil
+                            </a>
+                            <a href="/settings" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100">
+                                <span class="material-icons mr-3 text-sm">settings</span>
+                                Paramètres
+                            </a>
+                            <div class="border-t mt-2 pt-2">
+                                <a href="/logout" class="flex items-center px-4 py-2 text-red-600 hover:bg-red-50">
+                                    <span class="material-icons mr-3 text-sm">logout</span>
+                                    Déconnexion
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- CONTENU DE LA PAGE -->
+        <%- body %>
+    </main>
+
+    <!-- SCRIPTS -->
+    <script>
+        // Vérifier la connexion
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard chargé pour:', '<%= user.name %>');
+            
+            // Vérification de session côté client
+            fetch('/api/auth/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.isAuthenticated) {
+                        window.location.href = '/';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur de vérification:', error);
+                });
+            
+            // Menu utilisateur
+            const userMenuButton = document.getElementById('userMenuButton');
+            const userMenu = document.getElementById('userMenu');
+            
+            if (userMenuButton && userMenu) {
+                userMenuButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    userMenu.classList.toggle('active');
+                });
+                
+                // Fermer le menu en cliquant ailleurs
+                document.addEventListener('click', (e) => {
+                    if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
+                        userMenu.classList.remove('active');
+                    }
+                });
+                
+                // Empêcher la fermeture en cliquant dans le menu
+                userMenu.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+            
+            // Recherche globale
+            const searchInput = document.getElementById('globalSearch');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const query = searchInput.value.trim();
+                        if (query) {
+                            window.location.href = `/search?q=${encodeURIComponent(query)}`;
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
