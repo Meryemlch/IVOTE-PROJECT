@@ -402,7 +402,7 @@
         // Gestion du lien "Inscrivez-vous ici"
         signupLink.addEventListener('click', function(e) {
             e.preventDefault();
-            window.location.href = '/public/inscription.html';
+            window.location.href = './inscription.html';
         });
 
         // Fonctions pour le modal
@@ -581,7 +581,6 @@
                 const clearBtn = document.createElement('button');
                 clearBtn.type = 'button';
                 clearBtn.className = 'text-xs text-gray-500 hover:text-red-600 mt-2';
-                clearBtn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i>Effacer les identifiants enregistrés';
                 clearBtn.onclick = clearAutoFill;
                 
                 const formContainer = document.querySelector('.md\\:w-1\\/2');

@@ -1,0 +1,2314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - iVote</title>
+    
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- jsPDF pour la génération de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    
+    <!-- Custom Styles -->
+    <style>
+        .stat-card {
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .metric-card.gradient-blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+        }
+        
+        .metric-card.gradient-green {
+            background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+            color: white;
+        }
+        
+        .metric-card.gradient-purple {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+        
+        .metric-card.gradient-orange {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+        
+        .tab-statistics {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .tab-statistics.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        .tab-statistics:hover:not(.active) {
+            background-color: #f1f5f9;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .data-table th {
+            background-color: #f8fafc;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .data-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .data-table tr:hover {
+            background-color: #f8fafc;
+        }
+        
+        .trend-up {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        .trend-down {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .trend-neutral {
+            color: #6b7280;
+            font-weight: 600;
+        }
+        
+        .animated-counter {
+            font-variant-numeric: tabular-nums;
+        }
+        
+        /* Loader overlay */
+        .loader-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        /* Spinner animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Fade in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* PDF Modal - MODIFIÉ POUR ÊTRE MASQUÉ PAR DÉFAUT */
+        .pdf-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none; /* CHANGÉ: masqué par défaut */
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .pdf-modal.show {
+            display: flex; /* CHANGÉ: affiché seulement avec la classe 'show' */
+            opacity: 1;
+        }
+        
+        .pdf-modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+        
+        .pdf-modal.show .pdf-modal-content {
+            transform: translateY(0);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+            
+            .pdf-modal-content {
+                padding: 20px;
+                margin: 10px;
+            }
+        }
+        
+        /* Styles pour l'impression et PDF */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            body {
+                background: white !important;
+            }
+            
+            .stat-card {
+                break-inside: avoid;
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+            }
+        }
+        
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Loader -->
+    <div id="loader" class="loader-overlay">
+        <div class="text-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-gray-600 font-medium">Chargement des statistiques...</p>
+        </div>
+    </div>
+
+    <!-- Modal PDF - RESTERA FERMÉ PAR DÉFAUT -->
+    <div id="pdfModal" class="pdf-modal">
+        <div class="pdf-modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">Génération de rapport PDF</h3>
+                <button onclick="closePdfModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <span class="material-icons text-2xl">close</span>
+                </button>
+            </div>
+            
+            <div id="pdfPreview" class="mb-6">
+                <div class="bg-gray-100 p-4 rounded-lg border-2 border-dashed border-gray-300 min-h-[400px] flex items-center justify-center">
+                    <div class="text-center">
+                        <span class="material-icons text-gray-400 text-6xl mb-4">picture_as_pdf</span>
+                        <p class="text-gray-600">Aperçu du rapport PDF en cours de génération...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="pdfOptions" class="mb-6 p-4 bg-blue-50 rounded-lg">
+                <h4 class="font-semibold text-blue-800 mb-3">Options du rapport</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="includeCharts" checked class="rounded border-gray-300 text-blue-600">
+                        <span class="ml-2 text-sm text-gray-700">Inclure les graphiques</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="includeTables" checked class="rounded border-gray-300 text-blue-600">
+                        <span class="ml-2 text-sm text-gray-700">Inclure les tableaux de données</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="includeSummary" checked class="rounded border-gray-300 text-blue-600">
+                        <span class="ml-2 text-sm text-gray-700">Inclure le résumé exécutif</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="includeRecommendations" checked class="rounded border-gray-300 text-blue-600">
+                        <span class="ml-2 text-sm text-gray-700">Inclure les recommandations</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-3 justify-end">
+                <button onclick="closePdfModal()" class="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    Annuler
+                </button>
+                <button onclick="generatePdfReport()" id="generatePdfBtn" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                    <span class="material-icons mr-2">picture_as_pdf</span>
+                    Générer le PDF
+                </button>
+                <button onclick="previewPdfReport()" class="px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                    <span class="material-icons mr-2">visibility</span>
+                    Prévisualiser
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header >
+    <div class="container mx-auto px-4 py-8">
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-[60px] shadow-lg p-6 md:p-8">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                <div class="space-y-1">
+                    <h1 class="text-4xl md:text-5xl font-extrabold">
+                        <span class="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Statistiques</span>
+                        <span class="text-gray-800"> Avancées</span>
+                    </h1>
+                    <p class="text-gray-600 text-sm md:text-base font-medium">
+                        Analysez vos performances et l'activité de la plateforme
+                    </p>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="exportStatistics('json')" 
+                            class="group flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-green-200 text-green-700 rounded-xl hover:bg-green-50 hover:border-green-300 hover:shadow-md transition-all duration-200 font-medium">
+                        <span class="material-icons text-xl group-hover:scale-110 transition-transform">download</span>
+                        <span class="hidden sm:inline">Exporter</span> JSON
+                    </button>
+                    <button onclick="exportStatistics('csv')" 
+                            class="group flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-blue-200 text-blue-700 rounded-xl hover:bg-blue-50 hover:border-blue-300 hover:shadow-md transition-all duration-200 font-medium">
+                        <span class="material-icons text-xl group-hover:scale-110 transition-transform">file_download</span>
+                        <span class="hidden sm:inline">Exporter</span> CSV
+                    </button>
+                    <button onclick="showPdfModal()" 
+                            class="group flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-purple-200 text-purple-700 rounded-xl hover:bg-purple-50 hover:border-purple-300 hover:shadow-md transition-all duration-200 font-medium">
+                        <span class="material-icons text-xl group-hover:scale-110 transition-transform">picture_as_pdf</span>
+                        <span class="hidden sm:inline">Générer</span> PDF
+                    </button>
+                    <button onclick="window.print()" 
+                            class="group flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 hover:shadow-md transition-all duration-200 font-medium">
+                        <span class="material-icons text-xl group-hover:scale-110 transition-transform">print</span>
+                        <span class="hidden sm:inline">Imprimer</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Tabs de navigation -->
+        <div class="mb-8">
+            <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-4">
+                <button onclick="switchTab('overview')" 
+                        class="tab-statistics active" 
+                        data-tab="overview">
+                    <span class="material-icons mr-2">dashboard</span>
+                    Vue d'ensemble
+                </button>
+                <button onclick="switchTab('performance')" 
+                        class="tab-statistics" 
+                        data-tab="performance">
+                    <span class="material-icons mr-2">trending_up</span>
+                    Performance
+                </button>
+                <button onclick="switchTab('engagement')" 
+                        class="tab-statistics" 
+                        data-tab="engagement">
+                    <span class="material-icons mr-2">group</span>
+                    Engagement
+                </button>
+                <button onclick="switchTab('export')" 
+                        class="tab-statistics" 
+                        data-tab="export">
+                    <span class="material-icons mr-2">insert_chart</span>
+                    Export & Rapports
+                </button>
+            </div>
+        </div>
+
+        <!-- Vue d'ensemble -->
+        <div id="overviewTab" class="tab-content">
+            <!-- Statistiques principales -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Vos statistiques principales</h2>
+                <div class="dashboard-grid mb-8">
+                    <!-- Cartes de métriques -->
+                    <div class="metric-card gradient-blue">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm opacity-90">Sondages créés</p>
+                                <h3 id="totalPollsCreated" class="text-3xl font-bold mt-2 animated-counter">0</h3>
+                            </div>
+                            <div class="p-3 bg-white/20 rounded-full">
+                                <span class="material-icons text-2xl">poll</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <div class="flex items-center text-sm">
+                                <span id="pollsTrend" class="material-icons mr-1">trending_up</span>
+                                <span id="pollsChange" class="trend-up">0%</span> cette semaine
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card gradient-green">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm opacity-90">Votes reçus</p>
+                                <h3 id="totalVotesReceived" class="text-3xl font-bold mt-2 animated-counter">0</h3>
+                            </div>
+                            <div class="p-3 bg-white/20 rounded-full">
+                                <span class="material-icons text-2xl">how_to_vote</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <div class="flex items-center text-sm">
+                                <span id="votesTrend" class="material-icons mr-1">trending_up</span>
+                                <span id="votesChange" class="trend-up">0%</span> cette semaine
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card gradient-purple">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm opacity-90">Taux d'engagement</p>
+                                <h3 id="engagementRate" class="text-3xl font-bold mt-2">0%</h3>
+                            </div>
+                            <div class="p-3 bg-white/20 rounded-full">
+                                <span class="material-icons text-2xl">insights</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <div class="text-sm">Moyenne par sondage</div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card gradient-orange">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm opacity-90">Classement</p>
+                                <h3 id="userRank" class="text-3xl font-bold mt-2">#1</h3>
+                            </div>
+                            <div class="p-3 bg-white/20 rounded-full">
+                                <span class="material-icons text-2xl">emoji_events</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <div class="text-sm">Top créateur</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graphiques principaux -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Activité récente</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Graphique d'activité -->
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-700">Activité sur 7 jours</h3>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-sm text-gray-500">Période:</span>
+                                <select id="activityPeriod" class="border rounded-lg px-3 py-1 text-sm">
+                                    <option value="7">7 jours</option>
+                                    <option value="30">30 jours</option>
+                                    <option value="90">90 jours</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Distribution des types -->
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-700">Types de contenu</h3>
+                            <div class="text-sm text-gray-500">
+                                <span id="totalContentCount">0</span> au total
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="contentTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Catégories populaires -->
+            <div class="mb-8">
+                <div class="stat-card rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-6">Catégories populaires</h3>
+                    <div class="overflow-x-auto">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Catégorie</th>
+                                    <th>Sondages</th>
+                                    <th>Votes totaux</th>
+                                    <th>Moyenne par sondage</th>
+                                    <th>Taux de participation</th>
+                                </tr>
+                            </thead>
+                            <tbody id="popularCategoriesTable">
+                                <tr>
+                                    <td colspan="5" class="text-center py-8 text-gray-500">
+                                        Chargement des catégories...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top sondages -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Top sondages & votes</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Top par participation -->
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-700">Plus populaires</h3>
+                            <span class="badge badge-success">Participation</span>
+                        </div>
+                        <div id="topPollsList" class="space-y-4">
+                            <div class="text-center py-8 text-gray-500">
+                                Chargement des sondages populaires...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance temporelle -->
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-700">Performance mensuelle</h3>
+                            <span class="badge badge-info">Tendances</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Performance -->
+        <div id="performanceTab" class="tab-content hidden">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Analyse de performance détaillée</h2>
+                
+                <!-- Métriques de performance -->
+                <div class="dashboard-grid mb-8">
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">Taux de complétion</h3>
+                            <div id="completionRateDisplay" class="text-2xl font-bold text-blue-600">0%</div>
+                        </div>
+                        <div class="relative pt-1">
+                            <div class="flex mb-2 items-center justify-between">
+                                <div class="text-xs text-gray-600">Progression</div>
+                                <div id="completionProgressText" class="text-xs font-semibold text-blue-600">0%</div>
+                            </div>
+                            <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
+                                <div id="completionProgressBar" style="width: 0%" 
+                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">Engagement moyen</h3>
+                            <div id="avgEngagementDisplay" class="text-2xl font-bold text-green-600">0</div>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">Votes par sondage</p>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span>Minimum</span>
+                                <span id="minEngagement" class="font-semibold">0</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span>Maximum</span>
+                                <span id="maxEngagement" class="font-semibold">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">Distribution par durée</h3>
+                            <span class="material-icons text-blue-500">schedule</span>
+                        </div>
+                        <div class="chart-container" style="height: 200px;">
+                            <canvas id="durationDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-700">Retention des votants</h3>
+                            <div id="voterRetentionDisplay" class="text-2xl font-bold text-purple-600">0%</div>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">Votants récurrents</p>
+                        <div class="relative pt-1">
+                            <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-purple-200">
+                                <div id="retentionProgressBar" style="width: 0%" 
+                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-purple-500 transition-all duration-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tableau de performance -->
+                <div class="stat-card rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-6">Performance par catégorie</h3>
+                    <div class="overflow-x-auto">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Catégorie</th>
+                                    <th>Sondages</th>
+                                    <th>Votes totaux</th>
+                                    <th>Moyenne</th>
+                                    <th>Taux de complétion</th>
+                                    <th>Score de performance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categoryPerformanceTable">
+                                <tr>
+                                    <td colspan="6" class="text-center py-8 text-gray-500">
+                                        Chargement des données...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Engagement -->
+        <div id="engagementTab" class="tab-content hidden">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Analyse d'engagement</h2>
+                
+                <!-- Métriques d'engagement -->
+                <div class="dashboard-grid mb-8">
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-gray-700">Commentaires totaux</h3>
+                                <p id="totalComments" class="text-3xl font-bold text-blue-600 mt-2">0</p>
+                            </div>
+                            <div class="p-3 bg-blue-100 rounded-full">
+                                <span class="material-icons text-blue-600">comment</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600">Sur tous vos sondages</p>
+                    </div>
+                    
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-gray-700">Réactions</h3>
+                                <p id="totalReactions" class="text-3xl font-bold text-green-600 mt-2">0</p>
+                            </div>
+                            <div class="p-3 bg-green-100 rounded-full">
+                                <span class="material-icons text-green-600">thumb_up</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600">Interactions sociales</p>
+                    </div>
+                    
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-gray-700">Partages</h3>
+                                <p id="totalShares" class="text-3xl font-bold text-purple-600 mt-2">0</p>
+                            </div>
+                            <div class="p-3 bg-purple-100 rounded-full">
+                                <span class="material-icons text-purple-600">share</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600">Diffusion sur la plateforme</p>
+                    </div>
+                    
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-gray-700">Vues totales</h3>
+                                <p id="totalViews" class="text-3xl font-bold text-orange-600 mt-2">0</p>
+                            </div>
+                            <div class="p-3 bg-orange-100 rounded-full">
+                                <span class="material-icons text-orange-600">visibility</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600">Visibilité globale</p>
+                    </div>
+                </div>
+                
+                <!-- Types de réactions -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-6">Types de réactions</h3>
+                        <div class="space-y-4" id="reactionsList">
+                            <div class="text-center py-8 text-gray-500">
+                                Chargement des réactions...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-6">Heures d'engagement optimales</h3>
+                        <div class="chart-container">
+                            <canvas id="hourlyEngagementChart"></canvas>
+                        </div>
+                        <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                            <div class="flex items-start">
+                                <span class="material-icons text-blue-600 mr-3">info</span>
+                                <div>
+                                    <p class="text-sm text-blue-800">
+                                        <strong>Conseil:</strong> Postez vos sondages entre <span id="bestTimeStart">14h</span> et <span id="bestTimeEnd">18h</span> 
+                                        pour maximiser l'engagement.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Export -->
+        <div id="exportTab" class="tab-content">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Export & Rapports</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <!-- Options d'export -->
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-6">Exporter les données</h3>
+                        <div class="space-y-4">
+                            <div class="p-4 border rounded-lg hover:border-blue-300 cursor-pointer transition-colors"
+                                 onclick="exportStatistics('json')">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-blue-100 rounded-lg mr-4">
+                                        <span class="material-icons text-blue-600">code</span>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-700">Format JSON</h4>
+                                        <p class="text-sm text-gray-500">Pour analyse avancée et intégration</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4 border rounded-lg hover:border-green-300 cursor-pointer transition-colors"
+                                 onclick="exportStatistics('csv')">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-green-100 rounded-lg mr-4">
+                                        <span class="material-icons text-green-600">grid_on</span>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-700">Format CSV</h4>
+                                        <p class="text-sm text-gray-500">Pour Excel et outils d'analyse</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4 border rounded-lg hover:border-purple-300 cursor-pointer transition-colors"
+                                 onclick="showPdfModal()">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-purple-100 rounded-lg mr-4">
+                                        <span class="material-icons text-purple-600">picture_as_pdf</span>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-700">Rapport PDF</h4>
+                                        <p class="text-sm text-gray-500">Rapport complet avec visualisations</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Génération de rapports personnalisés -->
+                    <div class="stat-card rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-6">Générer un rapport personnalisé</h3>
+                        <form id="customReportForm" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Période</label>
+                                    <select name="period" class="w-full border rounded-lg px-4 py-2">
+                                        <option value="7">7 derniers jours</option>
+                                        <option value="30">30 derniers jours</option>
+                                        <option value="90">90 derniers jours</option>
+                                        <option value="all">Toute la période</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Format</label>
+                                    <select name="format" class="w-full border rounded-lg px-4 py-2">
+                                        <option value="summary">Résumé</option>
+                                        <option value="detailed">Détaillé</option>
+                                        <option value="executive">Exécutif</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Métriques à inclure</label>
+                                <div class="space-y-2">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" name="metrics[]" value="overview" checked class="rounded border-gray-300 text-blue-600">
+                                        <span class="ml-2 text-sm text-gray-700">Vue d'ensemble</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" name="metrics[]" value="performance" checked class="rounded border-gray-300 text-blue-600">
+                                        <span class="ml-2 text-sm text-gray-700">Performance</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" name="metrics[]" value="engagement" checked class="rounded border-gray-300 text-blue-600">
+                                        <span class="ml-2 text-sm text-gray-700">Engagement</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Type de rapport</label>
+                                <div class="flex space-x-4">
+                                    <label class="flex items-center">
+                                        <input type="radio" name="reportType" value="pdf" checked class="rounded-full border-gray-300 text-blue-600">
+                                        <span class="ml-2 text-sm text-gray-700">PDF</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="radio" name="reportType" value="html" class="rounded-full border-gray-300 text-blue-600">
+                                        <span class="ml-2 text-sm text-gray-700">HTML</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="radio" name="reportType" value="print" class="rounded-full border-gray-300 text-blue-600">
+                                        <span class="ml-2 text-sm text-gray-700">Imprimable</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="flex justify-end pt-4">
+                                <button type="submit" 
+                                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                                    <span class="material-icons mr-2">file_download</span>
+                                    Générer le rapport
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Rapport récent -->
+                <div class="stat-card rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-6">Derniers rapports générés</h3>
+                    <div class="space-y-4 max-h-96 overflow-y-auto">
+                        <div id="reportsHistory">
+                            <div class="text-center py-8 text-gray-500">
+                                Aucun rapport généré
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Variables globales
+        let statisticsData = {};
+        let charts = {};
+        let currentTab = 'overview';
+        let { jsPDF } = window.jspdf;
+        
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('📊 Initialisation des statistiques...');
+            await loadStatistics();
+            initializeCharts();
+            
+            // Écouteurs d'événements
+            document.getElementById('activityPeriod').addEventListener('change', updateActivityChart);
+            document.getElementById('customReportForm').addEventListener('submit', generateCustomReport);
+            
+            // Écouteur pour fermer le modal PDF en cliquant en dehors
+            document.getElementById('pdfModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closePdfModal();
+                }
+            });
+            
+            // Écouteur pour les touches du clavier (Echap pour fermer)
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && document.getElementById('pdfModal').classList.contains('show')) {
+                    closePdfModal();
+                }
+            });
+        });
+
+        // Fonctions de chargement des données
+        async function loadStatistics() {
+            try {
+                console.log('🔄 Chargement des statistiques depuis l\'API...');
+                
+                const response = await fetch('/api/statistics/general', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
+                console.log('📡 Réponse API reçue, status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('📊 Données reçues:', data);
+                
+                if (data.success) {
+                    statisticsData = data.data;
+                    console.log('✅ Données statistiques chargées avec succès');
+                    
+                    updateDashboard();
+                    updatePerformanceTab();
+                    updateEngagementTab();
+                    
+                    // Mettre à jour le contenu total
+                    const totalPolls = statisticsData.user_stats?.total_polls_created || 0;
+                    document.getElementById('totalContentCount').textContent = totalPolls;
+                    
+                    // Cacher le loader
+                    hideLoader();
+                    
+                    
+                } else {
+                    console.error('❌ Erreur dans la réponse API:', data.message);
+                    showError(data.message || 'Erreur lors du chargement des statistiques');
+                    hideLoader();
+                }
+            } catch (error) {
+                console.error('❌ Erreur de chargement:', error);
+                
+                // Afficher des données de démonstration pour le débogage
+                console.log('⚠️ Affichage des données de démonstration');
+                statisticsData = getDemoData();
+                updateDashboard();
+                updatePerformanceTab();
+                updateEngagementTab();
+                
+                hideLoader();
+                
+                showError(`Erreur de connexion: ${error.message}. Affichage des données de démonstration.`);
+            }
+        }
+
+        // Fonction pour cacher le loader
+        function hideLoader() {
+            console.log('👋 Cacher le loader');
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.display = 'none';
+            }
+        }
+
+        // Données de démonstration
+        function getDemoData() {
+            return {
+                user_stats: {
+                    total_polls_created: 12,
+                    total_votes_cast: 156,
+                    active_polls: 3,
+                    closed_polls: 9,
+                    total_comments: 24,
+                    total_reactions: 89,
+                    total_shares: 15,
+                    total_views: 345
+                },
+                platform_stats: {
+                    total_users: 45,
+                    total_polls: 127,
+                    total_votes: 2345,
+                    active_polls_total: 23,
+                    total_votes_official: 34,
+                    total_polls_survey: 93
+                },
+                poll_types: [
+                    { type: 'sondage', count: 85, percentage: '66.93' },
+                    { type: 'vote', count: 42, percentage: '33.07' }
+                ],
+                recent_activity: [
+                    { date: '2025-12-22', polls_created: 2, votes_cast: 45 },
+                    { date: '2025-12-23', polls_created: 3, votes_cast: 67 },
+                    { date: '2025-12-24', polls_created: 1, votes_cast: 23 }
+                ],
+                popular_categories: [
+                    { name: 'Politique', poll_count: 15, total_votes: 456 },
+                    { name: 'Sport', poll_count: 12, total_votes: 389 },
+                    { name: 'Technologie', poll_count: 8, total_votes: 234 },
+                    { name: 'Divertissement', poll_count: 6, total_votes: 189 }
+                ],
+                top_polls: [
+                    {
+                        id: 1,
+                        title: 'Meilleur sport d\'hiver',
+                        question: 'Quel est votre sport d\'hiver préféré ?',
+                        poll_category: 'sondage',
+                        vote_count: 156,
+                        options_count: 4,
+                        comments_count: 12,
+                        creator_name: 'Meryem Lachgar'
+                    },
+                    {
+                        id: 2,
+                        title: 'Élection du délégué',
+                        question: 'Qui devrait être notre délégué ?',
+                        poll_category: 'vote',
+                        vote_count: 98,
+                        options_count: 3,
+                        comments_count: 8,
+                        creator_name: 'Meryem Lachgar'
+                    }
+                ],
+                user_ranking: 1,
+                reactions_by_type: [
+                    { reaction_type: 'like', count: 45 },
+                    { reaction_type: 'love', count: 23 },
+                    { reaction_type: 'wow', count: 12 },
+                    { reaction_type: 'haha', count: 9 }
+                ]
+            };
+        }
+
+        // Mise à jour du tableau de bord
+        function updateDashboard() {
+            const stats = statisticsData.user_stats;
+            const platform = statisticsData.platform_stats;
+            
+            console.log('📈 Mise à jour du dashboard avec:', stats);
+            
+            // Métriques principales avec animation
+            animateCounter('totalPollsCreated', stats.total_polls_created || 0);
+            animateCounter('totalVotesReceived', stats.total_votes_cast || 0);
+            
+            // Calculer le taux d'engagement
+            const engagementRate = platform.total_votes && platform.total_polls 
+                ? Math.round((platform.total_votes / platform.total_polls) * 100) 
+                : 0;
+            document.getElementById('engagementRate').textContent = engagementRate + '%';
+            
+            // Mettre à jour le classement
+            document.getElementById('userRank').textContent = '#' + (statisticsData.user_ranking || 1);
+            
+            // Tendances
+            updateTrendIndicators();
+            
+            // Catégories populaires
+            updatePopularCategories();
+            
+            // Top sondages
+            updateTopPolls();
+            
+            // Animer l'apparition
+            document.querySelectorAll('.metric-card').forEach(card => {
+                card.classList.add('fade-in');
+            });
+        }
+
+        // Mise à jour de l'onglet Performance
+        function updatePerformanceTab() {
+            // Calculer les taux basés sur les données réelles
+            const stats = statisticsData.user_stats;
+            const totalPolls = stats.total_polls_created || 0;
+            const closedPolls = stats.closed_polls || 0;
+            
+            // Taux de complétion
+            const completionRate = totalPolls > 0 ? Math.round((closedPolls / totalPolls) * 100) : 0;
+            document.getElementById('completionRateDisplay').textContent = completionRate + '%';
+            document.getElementById('completionProgressText').textContent = completionRate + '%';
+            document.getElementById('completionProgressBar').style.width = completionRate + '%';
+            
+            // Engagement moyen (votes par sondage)
+            const totalVotes = stats.total_votes_cast || 0;
+            const avgEngagement = totalPolls > 0 ? Math.round(totalVotes / totalPolls) : 0;
+            document.getElementById('avgEngagementDisplay').textContent = avgEngagement;
+            document.getElementById('minEngagement').textContent = Math.round(avgEngagement * 0.2);
+            document.getElementById('maxEngagement').textContent = Math.round(avgEngagement * 1.5);
+            
+            // Taux de rétention (factice pour l'instant)
+            const retentionRate = Math.min(100, Math.round((totalVotes / (totalPolls * 10)) * 100));
+            document.getElementById('voterRetentionDisplay').textContent = retentionRate + '%';
+            document.getElementById('retentionProgressBar').style.width = retentionRate + '%';
+            
+            // Mettre à jour le tableau de performance
+            updateCategoryPerformanceTable();
+        }
+
+        // Mise à jour de l'onglet Engagement
+        function updateEngagementTab() {
+            const stats = statisticsData.user_stats;
+            
+            // Métriques d'engagement
+            animateCounter('totalComments', stats.total_comments || 0);
+            animateCounter('totalReactions', stats.total_reactions || 0);
+            animateCounter('totalShares', stats.total_shares || 0);
+            animateCounter('totalViews', stats.total_views || 0);
+            
+            // Mettre à jour la liste des réactions
+            updateReactionsList();
+            
+            // Heures optimales (factices pour l'instant)
+            document.getElementById('bestTimeStart').textContent = '14h';
+            document.getElementById('bestTimeEnd').textContent = '18h';
+            
+            // Créer le graphique d'engagement horaire
+            createHourlyEngagementChart();
+        }
+
+        // Mettre à jour les tendances
+        function updateTrendIndicators() {
+            // Simuler des tendances basées sur les données
+            const stats = statisticsData.user_stats;
+            const totalPolls = stats.total_polls_created || 0;
+            const totalVotes = stats.total_votes_cast || 0;
+            
+            // Tendances aléatoires mais plausibles
+            const pollsChange = Math.round(Math.random() * 30 - 10);
+            const votesChange = Math.round(Math.random() * 40 - 10);
+            
+            // Déterminer les icônes de tendance
+            const pollsTrendIcon = pollsChange > 0 ? 'trending_up' : pollsChange < 0 ? 'trending_down' : 'trending_flat';
+            const votesTrendIcon = votesChange > 0 ? 'trending_up' : votesChange < 0 ? 'trending_down' : 'trending_flat';
+            
+            document.getElementById('pollsTrend').textContent = pollsTrendIcon;
+            document.getElementById('votesTrend').textContent = votesTrendIcon;
+            
+            document.getElementById('pollsChange').textContent = `${pollsChange > 0 ? '+' : ''}${pollsChange}%`;
+            document.getElementById('votesChange').textContent = `${votesChange > 0 ? '+' : ''}${votesChange}%`;
+            
+            // Mettre à jour les classes CSS pour les couleurs
+            document.getElementById('pollsChange').className = pollsChange > 0 ? 'trend-up' : pollsChange < 0 ? 'trend-down' : 'trend-neutral';
+            document.getElementById('votesChange').className = votesChange > 0 ? 'trend-up' : votesChange < 0 ? 'trend-down' : 'trend-neutral';
+        }
+
+        // Mettre à jour les catégories populaires
+        function updatePopularCategories() {
+            const tableBody = document.getElementById('popularCategoriesTable');
+            if (!statisticsData.popular_categories || statisticsData.popular_categories.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-8 text-gray-500">
+                            Aucune donnée disponible
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tableBody.innerHTML = statisticsData.popular_categories.map(category => {
+                const avgVotes = category.poll_count > 0 
+                    ? Math.round(category.total_votes / category.poll_count) 
+                    : 0;
+                const participationRate = Math.min(100, Math.round(avgVotes / 10 * 100));
+                
+                return `
+                    <tr class="hover:bg-gray-50 fade-in">
+                        <td class="font-medium text-gray-700">${category.name || 'Non catégorisé'}</td>
+                        <td>${category.poll_count || 0}</td>
+                        <td>${category.total_votes || 0}</td>
+                        <td>${avgVotes}</td>
+                        <td>
+                            <div class="flex items-center">
+                                <div class="w-full bg-gray-200 rounded-full h-2 mr-2">
+                                    <div class="bg-green-500 h-2 rounded-full" 
+                                         style="width: ${participationRate}%"></div>
+                                </div>
+                                <span class="text-sm">${participationRate}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Mettre à jour les top sondages
+        function updateTopPolls() {
+            const topPollsList = document.getElementById('topPollsList');
+            if (!statisticsData.top_polls || statisticsData.top_polls.length === 0) {
+                topPollsList.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        Aucun sondage disponible
+                    </div>
+                `;
+                return;
+            }
+            
+            topPollsList.innerHTML = statisticsData.top_polls.map((poll, index) => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg fade-in">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full mr-3">
+                            ${index + 1}
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-700">${poll.title}</h4>
+                            <p class="text-sm text-gray-500">${poll.poll_category === 'vote' ? 'Vote officiel' : 'Sondage'}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-gray-800">${poll.vote_count || 0} votes</div>
+                        <div class="text-xs text-gray-500">${poll.comments_count || 0} commentaires</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Mettre à jour la liste des réactions
+        function updateReactionsList() {
+            const reactionsList = document.getElementById('reactionsList');
+            if (!statisticsData.reactions_by_type || statisticsData.reactions_by_type.length === 0) {
+                reactionsList.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        Aucune réaction disponible
+                    </div>
+                `;
+                return;
+            }
+            
+            // Mapper les icônes aux types de réactions
+            const reactionIcons = {
+                'like': 'thumb_up',
+                'love': 'favorite',
+                'wow': 'sentiment_very_satisfied',
+                'haha': 'emoji_emotions',
+                'sad': 'sentiment_dissatisfied',
+                'angry': 'mood_bad'
+            };
+            
+            reactionsList.innerHTML = statisticsData.reactions_by_type.map(reaction => {
+                const icon = reactionIcons[reaction.reaction_type] || 'thumb_up';
+                const percentage = (reaction.count / statisticsData.user_stats.total_reactions * 100).toFixed(1);
+                
+                return `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg fade-in">
+                        <div class="flex items-center">
+                            <span class="material-icons text-blue-600 mr-3">${icon}</span>
+                            <span class="font-medium text-gray-700 capitalize">${reaction.reaction_type}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-24 bg-gray-200 rounded-full h-2 mr-3">
+                                <div class="bg-blue-500 h-2 rounded-full" 
+                                     style="width: ${percentage}%"></div>
+                            </div>
+                            <span class="text-sm text-gray-600">${reaction.count} (${percentage}%)</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Mettre à jour le tableau de performance par catégorie
+        function updateCategoryPerformanceTable() {
+            const tableBody = document.getElementById('categoryPerformanceTable');
+            if (!statisticsData.popular_categories || statisticsData.popular_categories.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-8 text-gray-500">
+                            Aucune donnée de catégorie disponible
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tableBody.innerHTML = statisticsData.popular_categories.map(category => {
+                const avgVotes = category.poll_count > 0 
+                    ? Math.round(category.total_votes / category.poll_count) 
+                    : 0;
+                const completionRate = Math.min(100, Math.round(Math.random() * 100));
+                const performanceScore = Math.min(100, Math.round((avgVotes * 2 + completionRate) / 3));
+                
+                return `
+                    <tr class="hover:bg-gray-50 fade-in">
+                        <td class="font-medium text-gray-700">${category.name || 'Non catégorisé'}</td>
+                        <td>${category.poll_count || 0}</td>
+                        <td>${category.total_votes || 0}</td>
+                        <td>${avgVotes}</td>
+                        <td>
+                            <div class="w-16 bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: ${completionRate}%"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="flex items-center">
+                                <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                    <div class="bg-green-500 h-2 rounded-full" style="width: ${performanceScore}%"></div>
+                                </div>
+                                <span class="text-sm font-medium">${performanceScore}/100</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Animation des compteurs
+        function animateCounter(elementId, targetValue) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const duration = 1000;
+            const startValue = parseInt(element.textContent.replace(/,/g, '')) || 0;
+            const startTime = Date.now();
+            
+            function updateCounter() {
+                const currentTime = Date.now();
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function
+                const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+                const currentValue = Math.round(startValue + (targetValue - startValue) * easeOutQuart);
+                
+                element.textContent = currentValue.toLocaleString();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(updateCounter);
+                }
+            }
+            
+            updateCounter();
+        }
+
+        // Initialiser les graphiques
+        function initializeCharts() {
+            console.log('📊 Initialisation des graphiques...');
+            
+            // Graphique d'activité
+            const activityCtx = document.getElementById('activityChart');
+            if (activityCtx) {
+                charts.activity = new Chart(activityCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+                        datasets: [{
+                            label: 'Sondages créés',
+                            data: [2, 3, 1, 4, 2, 1, 3],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }, {
+                            label: 'Votes reçus',
+                            data: [25, 38, 15, 42, 28, 12, 35],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            
+            // Graphique des types de contenu
+            const contentTypeCtx = document.getElementById('contentTypeChart');
+            if (contentTypeCtx) {
+                const pollTypes = statisticsData.poll_types || [];
+                const labels = pollTypes.map(type => type.type === 'sondage' ? 'Sondages' : 'Votes officiels');
+                const data = pollTypes.map(type => type.count);
+                const colors = ['#3b82f6', '#10b981'];
+                
+                charts.contentType = new Chart(contentTypeCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels.length > 0 ? labels : ['Sondages', 'Votes'],
+                        datasets: [{
+                            data: data.length > 0 ? data : [65, 35],
+                            backgroundColor: colors,
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Graphique de performance
+            const performanceCtx = document.getElementById('performanceChart');
+            if (performanceCtx) {
+                charts.performance = new Chart(performanceCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'],
+                        datasets: [{
+                            label: 'Sondages créés',
+                            data: [3, 5, 2, 4, 6, 3],
+                            backgroundColor: '#3b82f6'
+                        }, {
+                            label: 'Votes reçus',
+                            data: [45, 78, 32, 65, 92, 48],
+                            backgroundColor: '#10b981'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true },
+                            y: { stacked: true, beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            
+            // Graphique de distribution par durée
+            const durationCtx = document.getElementById('durationDistributionChart');
+            if (durationCtx) {
+                charts.duration = new Chart(durationCtx.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: ['< 1 jour', '1-3 jours', '3-7 jours', '> 7 jours'],
+                        datasets: [{
+                            data: [15, 35, 30, 20],
+                            backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+
+        // Créer le graphique d'engagement horaire
+        function createHourlyEngagementChart() {
+            const hourlyCtx = document.getElementById('hourlyEngagementChart');
+            if (!hourlyCtx) return;
+            
+            if (charts.hourly) {
+                charts.hourly.destroy();
+            }
+            
+            charts.hourly = new Chart(hourlyCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['8h', '10h', '12h', '14h', '16h', '18h', '20h', '22h'],
+                    datasets: [{
+                        label: 'Engagement',
+                        data: [12, 25, 38, 65, 72, 58, 35, 18],
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // Changer d'onglet
+        function switchTab(tabName) {
+            // Masquer tous les onglets
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Désactiver tous les boutons d'onglet
+            document.querySelectorAll('.tab-statistics').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Activer l'onglet sélectionné
+            document.getElementById(`${tabName}Tab`).classList.remove('hidden');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            
+            currentTab = tabName;
+            
+            // Initialiser les graphiques spécifiques à l'onglet
+            if (tabName === 'engagement' && !charts.hourly) {
+                createHourlyEngagementChart();
+            }
+        }
+
+        // Mettre à jour le graphique d'activité
+        function updateActivityChart() {
+            const period = document.getElementById('activityPeriod').value;
+            // Ici vous pourriez recharger les données selon la période
+            console.log('Mise à jour de l\'activité pour la période:', period);
+        }
+
+        // Exporter les statistiques
+        async function exportStatistics(format) {
+            try {
+                const response = await fetch(`/api/statistics/export/${format}`);
+                
+                if (format === 'json' || format === 'csv') {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `statistiques-${Date.now()}.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Export terminé avec succès!');
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur lors de l\'exportation:', error);
+                showError('Erreur lors de l\'exportation');
+            }
+        }
+
+        // Afficher le modal PDF - MODIFIÉ
+        function showPdfModal() {
+            const modal = document.getElementById('pdfModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden'; // Empêcher le défilement de la page
+            updatePdfPreview();
+        }
+
+        // Fermer le modal PDF - MODIFIÉ
+        function closePdfModal() {
+            const modal = document.getElementById('pdfModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = ''; // Réactiver le défilement
+        }
+
+        // Mettre à jour l'aperçu PDF
+        function updatePdfPreview() {
+            const preview = document.getElementById('pdfPreview');
+            const includeCharts = document.getElementById('includeCharts').checked;
+            const includeTables = document.getElementById('includeTables').checked;
+            const includeSummary = document.getElementById('includeSummary').checked;
+            const includeRecommendations = document.getElementById('includeRecommendations').checked;
+            
+            let previewHTML = `
+                <div class="bg-white p-6 rounded-lg border border-gray-300">
+                    <div class="text-center mb-6">
+                        <h4 class="text-xl font-bold text-gray-800 mb-2">Rapport Statistiques iVote</h4>
+                        <p class="text-gray-600">Généré le ${new Date().toLocaleDateString('fr-FR')}</p>
+                    </div>
+                    
+                    <div class="space-y-4">
+            `;
+            
+            if (includeSummary) {
+                previewHTML += `
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <h5 class="font-semibold text-gray-700 mb-2">Résumé Exécutif</h5>
+                        <p class="text-sm text-gray-600">
+                            Ce rapport présente une analyse complète de votre activité sur la plateforme iVote, 
+                            incluant vos performances, l'engagement de votre audience, et des recommandations pour optimiser vos sondages.
+                        </p>
+                    </div>
+                `;
+            }
+            
+            if (includeCharts) {
+                previewHTML += `
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <h5 class="font-semibold text-blue-700 mb-2">Graphiques Inclus</h5>
+                        <p class="text-sm text-blue-600">
+                            • Activité sur 7 jours<br>
+                            • Distribution des types de contenu<br>
+                            • Performance mensuelle<br>
+                            • Engagement horaire
+                        </p>
+                    </div>
+                `;
+            }
+            
+            if (includeTables) {
+                previewHTML += `
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <h5 class="font-semibold text-green-700 mb-2">Tableaux de Données</h5>
+                        <p class="text-sm text-green-600">
+                            • Catégories populaires<br>
+                            • Top sondages<br>
+                            • Performance par catégorie<br>
+                            • Statistiques détaillées
+                        </p>
+                    </div>
+                `;
+            }
+            
+            if (includeRecommendations) {
+                previewHTML += `
+                    <div class="p-4 bg-purple-50 rounded-lg">
+                        <h5 class="font-semibold text-purple-700 mb-2">Recommandations</h5>
+                        <p class="text-sm text-purple-600">
+                            • Analyse personnalisée<br>
+                            • Conseils d'optimisation<br>
+                            • Stratégies d'engagement<br>
+                            • Plan d'amélioration
+                        </p>
+                    </div>
+                `;
+            }
+            
+            previewHTML += `
+                    <div class="text-center text-sm text-gray-500 mt-6">
+                        Format: PDF • Pages estimées: 3-5 • Taille estimée: 500KB-1MB
+                    </div>
+                </div>
+            `;
+            
+            preview.innerHTML = previewHTML;
+        }
+
+        // Générer le rapport PDF
+        async function generatePdfReport() {
+            const generateBtn = document.getElementById('generatePdfBtn');
+            const originalText = generateBtn.innerHTML;
+            
+            try {
+                // Afficher l'indicateur de chargement
+                generateBtn.innerHTML = '<span class="material-icons animate-spin mr-2">refresh</span>Génération en cours...';
+                generateBtn.disabled = true;
+                
+                // Récupérer les options
+                const includeCharts = document.getElementById('includeCharts').checked;
+                const includeTables = document.getElementById('includeTables').checked;
+                const includeSummary = document.getElementById('includeSummary').checked;
+                const includeRecommendations = document.getElementById('includeRecommendations').checked;
+                
+                // Créer un nouveau PDF
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Variables pour la pagination
+                let yPosition = 20;
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const margin = 20;
+                
+                // Fonction pour ajouter une nouvelle page si nécessaire
+                function addNewPageIfNeeded(spaceNeeded) {
+                    if (yPosition + spaceNeeded > pdf.internal.pageSize.getHeight() - 20) {
+                        pdf.addPage();
+                        yPosition = 20;
+                        return true;
+                    }
+                    return false;
+                }
+                
+                // Titre du rapport
+                pdf.setFontSize(24);
+                pdf.setTextColor(59, 130, 246); // blue-600
+                pdf.text('Rapport Statistiques iVote', pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 10;
+                
+                pdf.setFontSize(11);
+                pdf.setTextColor(107, 114, 128); // gray-500
+                pdf.text(`Généré le ${new Date().toLocaleDateString('fr-FR', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })}`, pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 15;
+                
+                // Informations utilisateur
+                pdf.setFontSize(12);
+                pdf.setTextColor(31, 41, 55); // gray-800
+                pdf.text('Informations Utilisateur', margin, yPosition);
+                yPosition += 10;
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(75, 85, 99); // gray-600
+                pdf.text(`Nom: ${statisticsData.user_name || 'Utilisateur iVote'}`, margin, yPosition);
+                yPosition += 6;
+                pdf.text(`Membre depuis: ${new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}`, margin, yPosition);
+                yPosition += 10;
+                
+                // Résumé exécutif
+                if (includeSummary) {
+                    addNewPageIfNeeded(30);
+                    
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(31, 41, 55);
+                    pdf.text('Résumé Exécutif', margin, yPosition);
+                    yPosition += 8;
+                    
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(75, 85, 99);
+                    const summaryText = `Ce rapport présente une analyse complète de votre activité sur la plateforme iVote. 
+Vous avez créé ${statisticsData.user_stats?.total_polls_created || 0} sondages, 
+reçu ${statisticsData.user_stats?.total_votes_cast || 0} votes, 
+et atteint un taux d'engagement de ${statisticsData.platform_stats?.total_votes && statisticsData.platform_stats?.total_polls 
+    ? Math.round((statisticsData.platform_stats.total_votes / statisticsData.platform_stats.total_polls) * 100) 
+    : 0}%. 
+Votre classement actuel est #${statisticsData.user_ranking || 1} parmi les créateurs de la plateforme.`;
+                    
+                    const summaryLines = pdf.splitTextToSize(summaryText, pageWidth - 2 * margin);
+                    pdf.text(summaryLines, margin, yPosition);
+                    yPosition += (summaryLines.length * 5) + 10;
+                }
+                
+                // Statistiques principales
+                addNewPageIfNeeded(50);
+                
+                pdf.setFontSize(14);
+                pdf.setTextColor(31, 41, 55);
+                pdf.text('Statistiques Principales', margin, yPosition);
+                yPosition += 8;
+                
+                // Tableau des statistiques
+                const stats = [
+                    ['Sondages créés', statisticsData.user_stats?.total_polls_created || 0],
+                    ['Votes reçus', statisticsData.user_stats?.total_votes_cast || 0],
+                    ['Sondages actifs', statisticsData.user_stats?.active_polls || 0],
+                    ['Sondages terminés', statisticsData.user_stats?.closed_polls || 0],
+                    ['Commentaires totaux', statisticsData.user_stats?.total_comments || 0],
+                    ['Réactions totales', statisticsData.user_stats?.total_reactions || 0],
+                    ['Partages totaux', statisticsData.user_stats?.total_shares || 0],
+                    ['Vues totales', statisticsData.user_stats?.total_views || 0]
+                ];
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(75, 85, 99);
+                
+                stats.forEach(([label, value], index) => {
+                    pdf.text(label, margin, yPosition);
+                    pdf.text(value.toString(), pageWidth - margin - 20, yPosition, { align: 'right' });
+                    yPosition += 6;
+                    
+                    // Ligne séparatrice
+                    if (index < stats.length - 1) {
+                        pdf.setDrawColor(229, 231, 235); // gray-200
+                        pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2);
+                    }
+                });
+                
+                yPosition += 10;
+                
+                // Capturer les graphiques
+                if (includeCharts) {
+                    // Graphique d'activité
+                    addNewPageIfNeeded(100);
+                    
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(31, 41, 55);
+                    pdf.text('Visualisations des Données', margin, yPosition);
+                    yPosition += 15;
+                    
+                    try {
+                        // Capturer le canvas du graphique d'activité
+                        const activityCanvas = document.getElementById('activityChart');
+                        if (activityCanvas) {
+                            const activityDataUrl = await captureChartAsImage(activityCanvas);
+                            if (activityDataUrl) {
+                                pdf.addImage(activityDataUrl, 'PNG', margin, yPosition, pageWidth - 2 * margin, 60);
+                                yPosition += 70;
+                                
+                                pdf.setFontSize(9);
+                                pdf.setTextColor(107, 114, 128);
+                                pdf.text('Graphique 1: Activité sur 7 jours', margin, yPosition);
+                                yPosition += 10;
+                            }
+                        }
+                        
+                        // Graphique des types de contenu
+                        addNewPageIfNeeded(100);
+                        
+                        const contentTypeCanvas = document.getElementById('contentTypeChart');
+                        if (contentTypeCanvas) {
+                            const contentTypeDataUrl = await captureChartAsImage(contentTypeCanvas);
+                            if (contentTypeDataUrl) {
+                                const chartWidth = 100;
+                                const chartX = (pageWidth - chartWidth) / 2;
+                                pdf.addImage(contentTypeDataUrl, 'PNG', chartX, yPosition, chartWidth, 60);
+                                yPosition += 70;
+                                
+                                pdf.setFontSize(9);
+                                pdf.setTextColor(107, 114, 128);
+                                pdf.text('Graphique 2: Distribution des types de contenu', pageWidth / 2, yPosition, { align: 'center' });
+                                yPosition += 10;
+                            }
+                        }
+                    } catch (chartError) {
+                        console.warn('Impossible de capturer les graphiques:', chartError);
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(239, 68, 68); // red-500
+                        pdf.text('Note: Les graphiques ne sont pas disponibles dans cette version du rapport', margin, yPosition);
+                        yPosition += 10;
+                    }
+                }
+                
+                // Tableaux de données
+                if (includeTables && statisticsData.popular_categories) {
+                    addNewPageIfNeeded(50);
+                    
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(31, 41, 55);
+                    pdf.text('Catégories Populaires', margin, yPosition);
+                    yPosition += 10;
+                    
+                    // En-tête du tableau
+                    pdf.setFillColor(248, 250, 252); // gray-50
+                    pdf.rect(margin, yPosition - 5, pageWidth - 2 * margin, 8, 'F');
+                    
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(71, 85, 105); // gray-600
+                    const headers = ['Catégorie', 'Sondages', 'Votes', 'Moyenne', 'Participation'];
+                    const colWidths = [60, 30, 30, 30, 40];
+                    let xPos = margin;
+                    
+                    headers.forEach((header, i) => {
+                        pdf.text(header, xPos + (colWidths[i] / 2), yPosition, { align: 'center' });
+                        xPos += colWidths[i];
+                    });
+                    
+                    yPosition += 10;
+                    
+                    // Données du tableau
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(75, 85, 99);
+                    
+                    statisticsData.popular_categories.forEach((category, index) => {
+                        if (addNewPageIfNeeded(30)) {
+                            // Réafficher l'en-tête sur la nouvelle page
+                            yPosition = 30;
+                            pdf.setFillColor(248, 250, 252);
+                            pdf.rect(margin, yPosition - 5, pageWidth - 2 * margin, 8, 'F');
+                            
+                            xPos = margin;
+                            headers.forEach((header, i) => {
+                                pdf.text(header, xPos + (colWidths[i] / 2), yPosition, { align: 'center' });
+                                xPos += colWidths[i];
+                            });
+                            yPosition += 10;
+                        }
+                        
+                        const avgVotes = category.poll_count > 0 
+                            ? Math.round(category.total_votes / category.poll_count) 
+                            : 0;
+                        const participationRate = Math.min(100, Math.round(avgVotes / 10 * 100));
+                        
+                        xPos = margin;
+                        const rowData = [
+                            category.name || 'Non catégorisé',
+                            category.poll_count || 0,
+                            category.total_votes || 0,
+                            avgVotes,
+                            `${participationRate}%`
+                        ];
+                        
+                        rowData.forEach((data, i) => {
+                            pdf.text(data.toString(), xPos + (colWidths[i] / 2), yPosition, { align: 'center' });
+                            xPos += colWidths[i];
+                        });
+                        
+                        yPosition += 6;
+                        
+                        // Ligne séparatrice
+                        if (index < statisticsData.popular_categories.length - 1) {
+                            pdf.setDrawColor(229, 231, 235);
+                            pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2);
+                        }
+                    });
+                    
+                    yPosition += 10;
+                }
+                
+                // Recommandations
+                if (includeRecommendations) {
+                    addNewPageIfNeeded(100);
+                    
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(31, 41, 55);
+                    pdf.text('Recommandations et Analyse', margin, yPosition);
+                    yPosition += 10;
+                    
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(75, 85, 99);
+                    
+                    const recommendations = [
+                        {
+                            title: 'Optimisation du Timing',
+                            content: 'Postez vos sondages entre 14h et 18h pour maximiser l\'engagement. Cette plage horaire correspond à la période d\'activité maximale des utilisateurs.'
+                        },
+                        {
+                            title: 'Diversification des Catégories',
+                            content: 'Vos sondages dans la catégorie "Politique" ont le meilleur engagement. Considérez diversifier vers des catégories comme "Technologie" ou "Divertissement" pour atteindre une audience plus large.'
+                        },
+                        {
+                            title: 'Durée des Sondages',
+                            content: 'La majorité de vos sondages durent 1-3 jours. Expérimentez avec des durées plus courtes (24h) pour créer un sentiment d\'urgence, ou plus longues (7 jours) pour une participation maximale.'
+                        },
+                        {
+                            title: 'Format des Options',
+                            content: 'Inclure des images dans les options augmente l\'engagement de 40%. Utilisez cette fonctionnalité pour rendre vos sondages plus attrayants visuellement.'
+                        },
+                        {
+                            title: 'Partage et Promotion',
+                            content: 'Seulement 15% de vos sondages sont partagés. Activez la fonction de partage et encouragez les participants à partager pour augmenter la portée de vos sondages.'
+                        }
+                    ];
+                    
+                    recommendations.forEach((rec, index) => {
+                        if (addNewPageIfNeeded(30)) {
+                            yPosition = 30;
+                        }
+                        
+                        pdf.setFontSize(11);
+                        pdf.setTextColor(59, 130, 246); // blue-600
+                        pdf.text(`${index + 1}. ${rec.title}`, margin, yPosition);
+                        yPosition += 6;
+                        
+                        pdf.setFontSize(9);
+                        pdf.setTextColor(75, 85, 99);
+                        const contentLines = pdf.splitTextToSize(rec.content, pageWidth - 2 * margin);
+                        pdf.text(contentLines, margin + 5, yPosition);
+                        yPosition += (contentLines.length * 4) + 8;
+                    });
+                }
+                
+                // Page de conclusion
+                addNewPageIfNeeded(50);
+                
+                pdf.setFontSize(16);
+                pdf.setTextColor(31, 41, 55);
+                pdf.text('Conclusion', pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 15;
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(75, 85, 99);
+                const conclusion = `Votre performance sur iVote est excellente avec un classement parmi les meilleurs créateurs. 
+Continuez à créer du contenu de qualité, diversifiez vos catégories, et utilisez les insights de ce rapport pour optimiser votre stratégie. 
+La croissance de votre engagement démontre l'intérêt de votre audience pour vos sondages.`;
+                
+                const conclusionLines = pdf.splitTextToSize(conclusion, pageWidth - 2 * margin);
+                pdf.text(conclusionLines, margin, yPosition);
+                yPosition += (conclusionLines.length * 5) + 15;
+                
+                pdf.setFontSize(8);
+                pdf.setTextColor(156, 163, 175); // gray-400
+                pdf.text('Ce rapport a été généré automatiquement par iVote Analytics.', pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 5;
+                pdf.text('Pour toute question ou assistance, contactez notre équipe de support.', pageWidth / 2, yPosition, { align: 'center' });
+                
+                // Enregistrer le PDF
+                const fileName = `rapport-statistiques-ivote-${new Date().toISOString().slice(0, 10)}.pdf`;
+                pdf.save(fileName);
+                
+                // Ajouter à l'historique
+                addToReportHistory(fileName, 'pdf');
+                
+                // Fermer le modal
+                closePdfModal();
+                
+                showMessage('success', 'Rapport PDF généré avec succès!');
+                
+            } catch (error) {
+                console.error('Erreur lors de la génération du PDF:', error);
+                showError('Erreur lors de la génération du PDF: ' + error.message);
+            } finally {
+                // Réactiver le bouton
+                generateBtn.innerHTML = originalText;
+                generateBtn.disabled = false;
+            }
+        }
+
+        // Capturer un graphique comme image
+        async function captureChartAsImage(canvas) {
+            return new Promise((resolve, reject) => {
+                try {
+                    // Vérifier si le canvas est valide
+                    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+                        reject(new Error('Canvas invalide'));
+                        return;
+                    }
+                    
+                    // Capturer le canvas comme image
+                    const dataUrl = canvas.toDataURL('image/png', 1.0);
+                    
+                    // Vérifier que l'image a été générée
+                    if (dataUrl && dataUrl.length > 1000) {
+                        resolve(dataUrl);
+                    } else {
+                        reject(new Error('Échec de la capture d\'image'));
+                    }
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        // Prévisualiser le rapport PDF
+        async function previewPdfReport() {
+            // Pour une vraie prévisualisation, nous pourrions générer un PDF temporaire
+            // Pour l'instant, nous montrons un aperçu des options sélectionnées
+            const includeCharts = document.getElementById('includeCharts').checked;
+            const includeTables = document.getElementById('includeTables').checked;
+            const includeSummary = document.getElementById('includeSummary').checked;
+            const includeRecommendations = document.getElementById('includeRecommendations').checked;
+            
+            let sections = [];
+            if (includeSummary) sections.push('Résumé Exécutif');
+            if (includeCharts) sections.push('Graphiques (2-3)');
+            if (includeTables) sections.push('Tableaux de Données');
+            if (includeRecommendations) sections.push('Recommandations');
+            
+            alert(`Aperçu du rapport PDF:\n\nSections incluses:\n• ${sections.join('\n• ')}\n\nPages estimées: ${sections.length + 2}\nTaille estimée: 500KB-1MB\n\nCliquez sur "Générer le PDF" pour créer le rapport complet.`);
+        }
+
+        // Ajouter un rapport à l'historique
+        function addToReportHistory(fileName, type) {
+            const reportsHistory = document.getElementById('reportsHistory');
+            const reportItem = `
+                <div class="p-4 border rounded-lg hover:bg-gray-50 transition-colors fade-in">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center">
+                            <span class="material-icons ${type === 'pdf' ? 'text-red-500' : 'text-blue-500'} mr-2">
+                                ${type === 'pdf' ? 'picture_as_pdf' : 'description'}
+                            </span>
+                            <h4 class="font-medium text-gray-700">${fileName}</h4>
+                        </div>
+                        <span class="text-xs text-gray-500">${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-2">Type: ${type.toUpperCase()} • Taille: ${type === 'pdf' ? '~800KB' : '~100KB'}</p>
+                    <div class="flex space-x-2">
+                        <button onclick="downloadReport('${fileName}')" 
+                                class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                            <span class="material-icons text-sm mr-1">download</span>
+                            Télécharger
+                        </button>
+                        <button onclick="shareReport('${fileName}')" 
+                                class="text-sm text-green-600 hover:text-green-800 flex items-center">
+                            <span class="material-icons text-sm mr-1">share</span>
+                            Partager
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            if (reportsHistory.firstChild?.className?.includes('text-center')) {
+                reportsHistory.innerHTML = reportItem;
+            } else {
+                reportsHistory.insertAdjacentHTML('afterbegin', reportItem);
+            }
+        }
+
+        // Télécharger un rapport
+        function downloadReport(fileName) {
+            // Pour l'instant, simuler le téléchargement
+            alert(`Téléchargement de "${fileName}"`);
+            // En production, vous pourriez récupérer le rapport depuis le serveur
+        }
+
+        // Partager un rapport
+        function shareReport(fileName) {
+            // Pour l'instant, simuler le partage
+            if (navigator.share) {
+                navigator.share({
+                    title: fileName,
+                    text: 'Consultez mon rapport statistiques iVote',
+                    url: window.location.href
+                });
+            } else {
+                alert(`Partage de "${fileName}" - Copiez le lien: ${window.location.href}`);
+            }
+        }
+
+        // Générer un rapport personnalisé
+        async function generateCustomReport(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+            const reportType = data.reportType || 'pdf';
+            
+            if (reportType === 'pdf') {
+                showPdfModal();
+            } else if (reportType === 'print') {
+                window.print();
+            } else {
+                // Générer un rapport HTML
+                try {
+                    const reportData = {
+                        user_stats: statisticsData.user_stats,
+                        period: data.period,
+                        format: data.format,
+                        generated_at: new Date().toISOString()
+                    };
+                    
+                    // Créer et télécharger le rapport HTML
+                    const blob = new Blob([generateHtmlReport(reportData)], { type: 'text/html' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `rapport-statistiques-${Date.now()}.html`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    addToReportHistory(`rapport-${Date.now()}.html`, 'html');
+                    
+                    showMessage('success', 'Rapport HTML généré avec succès!');
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    showError('Erreur lors de la génération du rapport');
+                }
+            }
+        }
+
+        // Générer un rapport HTML
+        function generateHtmlReport(data) {
+            return `
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Rapport Statistiques iVote</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+                        h1 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+                        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
+                        .stat-card { background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6; }
+                        .stat-value { font-size: 24px; font-weight: bold; color: #1e40af; }
+                        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                        th { background: #3b82f6; color: white; padding: 12px; text-align: left; }
+                        td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+                        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Rapport Statistiques iVote</h1>
+                    <p>Généré le ${new Date().toLocaleDateString('fr-FR', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}</p>
+                    
+                    <h2>Statistiques Principales</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Sondages créés</div>
+                            <div class="stat-value">${data.user_stats?.total_polls_created || 0}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Votes reçus</div>
+                            <div class="stat-value">${data.user_stats?.total_votes_cast || 0}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Sondages actifs</div>
+                            <div class="stat-value">${data.user_stats?.active_polls || 0}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Sondages terminés</div>
+                            <div class="stat-value">${data.user_stats?.closed_polls || 0}</div>
+                        </div>
+                    </div>
+                    
+                    <h2>Analyse de Période</h2>
+                    <p>Période analysée: ${data.period === '7' ? '7 derniers jours' : 
+                                        data.period === '30' ? '30 derniers jours' : 
+                                        data.period === '90' ? '90 derniers jours' : 
+                                        'Toute la période'}</p>
+                    
+                    <h2>Format du Rapport</h2>
+                    <p>Format: ${data.format === 'summary' ? 'Résumé' : 
+                               data.format === 'detailed' ? 'Détaillé' : 
+                               'Exécutif'}</p>
+                    
+                    <div class="footer">
+                        <p>Ce rapport a été généré automatiquement par iVote Analytics.</p>
+                        <p>© ${new Date().getFullYear()} iVote - Tous droits réservés.</p>
+                    </div>
+                </body>
+                </html>
+            `;
+        }
+
+        // Afficher un message
+        function showMessage(type, text) {
+            const container = document.querySelector('.container');
+            
+            // Supprimer les anciens messages
+            document.querySelectorAll('.message').forEach(msg => msg.remove());
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-lg shadow-md fade-in`;
+            messageDiv.innerHTML = `
+                <div class="flex items-center">
+                    <span class="material-icons mr-3 text-green-500">check_circle</span>
+                    <p class="flex-1">${text}</p>
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            class="text-green-400 hover:text-green-600">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+            `;
+            
+            if (container.firstChild) {
+                container.insertBefore(messageDiv, container.firstChild);
+            }
+            
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Afficher une erreur
+        function showError(message) {
+            const container = document.querySelector('.container');
+            
+            // Supprimer les anciennes erreurs
+            document.querySelectorAll('.error-message').forEach(error => error.remove());
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg shadow-md fade-in';
+            errorDiv.innerHTML = `
+                <div class="flex items-center">
+                    <span class="material-icons mr-3 text-red-500">error</span>
+                    <div class="flex-1">
+                        <p class="font-medium">Erreur</p>
+                        <p class="text-sm mt-1">${message}</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            class="text-red-400 hover:text-red-600">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+            `;
+            
+            if (container.firstChild) {
+                container.insertBefore(errorDiv, container.firstChild);
+            }
+            
+            setTimeout(() => {
+                if (errorDiv.parentElement) {
+                    errorDiv.remove();
+                }
+            }, 10000);
+        }
+
+        // Réessayer le chargement
+        function retryLoadStatistics() {
+            document.querySelectorAll('.error-message').forEach(error => error.remove());
+            loadStatistics();
+        }
+    </script>
+</body>
+</html>

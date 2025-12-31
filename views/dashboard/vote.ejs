@@ -11,8 +11,440 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- AOS pour les animations -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
     <!-- Custom Styles -->
     <style>
+        /* Styles réutilisés du code1 */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --card-gradient: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.12);
+        }
+        
+        /* Styles du système de commentaires et réactions du code1 */
+        .poll-interactions {
+            padding: 15px 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .interactions-left, .interactions-right {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .interaction-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 15px;
+            background: transparent;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .interaction-btn:hover {
+            background: #f5f5f5;
+        }
+        
+        .interaction-btn.active {
+            color: #4CAF50;
+            font-weight: 500;
+        }
+        
+        .reaction-btn-wrapper {
+            position: relative;
+        }
+        
+        .reaction-preview {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: white;
+            border-radius: 25px;
+            padding: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 100;
+            margin-bottom: 10px;
+            animation: fadeIn 0.2s ease;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .reaction-preview.show {
+            display: flex;
+        }
+        
+        .reaction-preview .emoji-btn {
+            font-size: 1.8em;
+            padding: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 45px;
+            height: 45px;
+        }
+        
+        .reaction-preview .emoji-btn:hover {
+            transform: scale(1.3);
+            background: #f5f5f5;
+        }
+        
+        .reactions-summary {
+            display: flex;
+            gap: 8px;
+            padding: 10px 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .reaction-count {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            background: #f5f5f5;
+            border-radius: 15px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .reaction-count:hover {
+            background: #e8f5e9;
+        }
+        
+        .reaction-emoji {
+            font-size: 1.2em;
+        }
+        
+        .reaction-user-count {
+            font-weight: 500;
+        }
+        
+        .comments-container {
+            margin-bottom: 20px;
+        }
+        
+        .comment-item {
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .comment-author {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .comment-date {
+            font-size: 0.85em;
+            color: #999;
+        }
+        
+        .comment-text {
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .add-comment-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .add-comment-section textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+        }
+        
+        /* Modals du système de commentaires */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .reactions-modal .modal-content,
+        .share-modal .modal-content {
+            max-width: 500px;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .reactions-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+        
+        .reaction-choice {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+        
+        .reaction-choice:hover {
+            border-color: #4CAF50;
+            background: #f8f9fa;
+            transform: translateY(-2px);
+        }
+        
+        .reaction-choice.active {
+            border-color: #4CAF50;
+            background: #e8f5e9;
+        }
+        
+        .reaction-emoji-large {
+            font-size: 2.5em;
+            margin-bottom: 8px;
+        }
+        
+        .reaction-name {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .share-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .share-option {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: white;
+        }
+        
+        .share-option-title {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .share-link-container {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .share-link-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.9em;
+            background: #f5f5f5;
+            cursor: pointer;
+        }
+        
+        .share-link-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        .copy-link-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.3s;
+        }
+        
+        .copy-link-btn:hover {
+            background: #45a049;
+        }
+        
+        .copy-link-btn.copied {
+            background: #2E7D32;
+        }
+        
+        .share-social-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .social-share-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        
+        .social-share-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .social-share-btn.facebook {
+            border-color: #1877F2;
+            color: #1877F2;
+        }
+        
+        .social-share-btn.twitter {
+            border-color: #1DA1F2;
+            color: #1DA1F2;
+        }
+        
+        .social-share-btn.whatsapp {
+            border-color: #25D366;
+            color: #25D366;
+        }
+        
+        .social-share-btn.linkedin {
+            border-color: #0077B5;
+            color: #0077B5;
+        }
+        
+        .social-share-btn.email {
+            border-color: #666;
+            color: #666;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Styles du code2 existant */
         .vote-option {
             transition: all 0.3s ease;
         }
@@ -267,22 +699,98 @@
             justify-content: center;
             color: #6b7280;
         }
+        
+        @media (max-width: 768px) {
+            .reactions-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .reaction-preview {
+                padding: 5px;
+            }
+            
+            .reaction-preview .emoji-btn {
+                font-size: 1.5em;
+                width: 40px;
+                height: 40px;
+                padding: 5px;
+            }
+            
+            .share-link-container {
+                flex-direction: column;
+            }
+            
+            .share-social-buttons {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
     <!-- Header -->
-    <header class="bg-white shadow-md">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-blue-600">iVote</h1>
-                <div class="flex items-center space-x-4">
-                    <span class="text-gray-700">Bonjour, <%= user.prenom %>!</span>
-                    <a href="/dashboard" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-                        Tableau de bord
-                    </a>
+    <header>
+        <!-- Conteneur avec coins arrondis -->
+        <div class="container mx-auto px-4 pt-6">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-xl relative overflow-hidden rounded-[50px]">
+                
+                <!-- Effets décoratifs -->
+                <div class="absolute top-0 right-0 -mt-10 -mr-10 h-32 w-32 bg-white/5 rounded-full blur-3xl"></div>
+                <div class="absolute bottom-0 left-0 -mb-10 -ml-10 h-24 w-24 bg-blue-400/10 rounded-full blur-2xl"></div>
+                
+                <div class="px-6 py-6 relative z-10">
+                    <div class="flex justify-between items-center">
+                        <!-- Logo avec effet -->
+                        <div class="flex items-center space-x-3">
+                            <div class="relative">
+                                <div class="absolute inset-0 bg-white opacity-20 rounded-full blur-sm"></div>
+                                <h1 class="text-3xl font-bold text-white relative z-10">
+                                    <span class="bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">
+                                        iVote
+                                    </span>
+                                </h1>
+                            </div>
+                            <div class="h-8 w-1 bg-white/30 rounded-full hidden md:block"></div>
+                            <span class="text-white/80 text-sm hidden md:block">Votez en toute confiance</span>
+                        </div>
+
+                        <!-- Section utilisateur -->
+                        <div class="flex items-center space-x-6">
+                            <!-- Badge utilisateur -->
+                            <div class="hidden md:flex items-center space-x-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
+                                <div class="h-8 w-8 rounded-full bg-gradient-to-br from-white to-blue-200 flex items-center justify-center">
+                                    <span class="text-blue-600 font-bold text-sm">
+                                        <%= user.prenom.charAt(0).toUpperCase() %>
+                                    </span>
+                                </div>
+                                <div class="text-white">
+                                    <p class="font-medium">Bonjour, <%= user.prenom %>!</p>
+                                    <p class="text-xs text-white/70">Connecté</p>
+                                </div>
+                            </div>
+
+                            <!-- Mobile greeting -->
+                            <div class="md:hidden text-white">
+                                <p class="text-sm">Salut, <%= user.prenom %>!</p>
+                            </div>
+
+                            <!-- Bouton amélioré -->
+                            <a href="/dashboard" class="group relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-r from-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                <div class="relative bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 flex items-center space-x-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                    </svg>
+                                    <span>Tableau de bord</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+        
+        <!-- Conteneur invisible pour l'espacement -->
+        <div class="h-8 bg-transparent"></div>
     </header>
 
     <div class="container mx-auto px-4 py-8">
@@ -290,13 +798,15 @@
         <div class="mb-8">
             <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-800">Sondages & Votes</h1>
-                    <p class="text-gray-600 mt-2">Participez aux votes officiels et aux sondages d'opinion</p>
+                    <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-800 drop-shadow-lg tracking-tight animate-fadeIn">Sondages & Votes</h1>
+                    <p class="text-gray-600 mt-3 text-lg sm:text-xl max-w-xl leading-relaxed animate-fadeIn delay-200">
+                        Participez aux votes officiels et aux sondages d'opinion
+                    </p>
                 </div>
                 <button onclick="openCreateModal()" 
-                        class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center">
-                    <span class="material-icons mr-2">add_circle</span>
-                    Créer un sondage/vote
+                    class="bg-gradient-to-r from-blue-500 to-blue-700 text-white px-6 py-3 rounded-2xl shadow-md hover:shadow-xl hover:from-blue-400 hover:to-blue-600 transform hover:-translate-y-1 transition-all duration-300 flex items-center">
+                    <span class="material-icons mr-2 text-xl animate-pulse">add_circle</span>
+                    <span class="font-bold text-lg">Créer un sondage/vote</span>
                 </button>
             </div>
 
@@ -323,6 +833,11 @@
                             data-tab="my-creations">
                         Mes créations
                     </button>
+                    <button onclick="switchTab('others-creations')" 
+                            class="tab-btn py-4 px-1 text-lg font-medium text-gray-500 hover:text-gray-700"
+                            data-tab="others-creations">
+                        Créés par d'autres
+                    </button>
                     <button onclick="switchTab('participated')" 
                             class="tab-btn py-4 px-1 text-lg font-medium text-gray-500 hover:text-gray-700"
                             data-tab="participated">
@@ -342,12 +857,13 @@
                                class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
-                <select id="categoryFilter" 
-                        class="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select id="categoryFilter"
+                    class="appearance-none bg-gray-100 rounded-3xl px-5 py-3 text-gray-800 font-medium shadow-inner hover:shadow-lg focus:outline-none focus:shadow-outline-blue transition-all duration-300 cursor-pointer">
                     <option value="">Toutes catégories</option>
                 </select>
-                <select id="statusFilter" 
-                        class="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+                <select id="statusFilter"
+                    class="appearance-none bg-gray-100 rounded-3xl px-5 py-3 text-gray-800 font-medium shadow-inner hover:shadow-lg focus:outline-none focus:shadow-outline-blue transition-all duration-300 cursor-pointer">
                     <option value="all">Tous les statuts</option>
                     <option value="active">Actifs</option>
                     <option value="closed">Terminés</option>
@@ -356,15 +872,17 @@
             
             <div class="flex flex-wrap gap-2">
                 <button onclick="filterByType('all')" 
-                        class="filter-type-btn active px-4 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200">
+                    class="filter-type-btn active px-5 py-3 rounded-xl bg-blue-100 text-blue-700 font-semibold shadow-md hover:bg-blue-200 transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
                     Tous types
                 </button>
+
                 <button onclick="filterByType('sondage')" 
-                        class="filter-type-btn px-4 py-2 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
+                    class="filter-type-btn px-5 py-3 rounded-xl bg-indigo-100 text-indigo-700 font-semibold shadow-md hover:bg-indigo-200 transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
                     Sondages
                 </button>
+
                 <button onclick="filterByType('vote')" 
-                        class="filter-type-btn px-4 py-2 rounded-lg bg-teal-100 text-teal-700 hover:bg-teal-200">
+                    class="filter-type-btn px-5 py-3 rounded-xl bg-teal-100 text-teal-700 font-semibold shadow-md hover:bg-teal-200 transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
                     Votes officiels
                 </button>
             </div>
@@ -621,7 +1139,7 @@
                             </button>
                             <button type="submit" 
                                     class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                Soumettre mon vote
+                                Soumettre
                             </button>
                         </div>
                     </form>
@@ -890,10 +1408,88 @@
                 </div>
             </div>
         </div>
+
+        <!-- ==================== MODALS DU SYSTÈME DE COMMENTAIRES ET RÉACTIONS ==================== -->
+        
+        <!-- Modal pour les commentaires -->
+        <div id="commentsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>
+                        <i class="material-icons">comment</i>
+                        Commentaires
+                    </h2>
+                    <button class="close-modal">
+                        <i class="material-icons">close</i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="comments-container" id="commentsContainer">
+                        <!-- Les commentaires seront chargés ici -->
+                    </div>
+                    <div class="add-comment-section">
+                        <textarea id="commentInput" placeholder="Ajouter un commentaire..." rows="3"></textarea>
+                        <button id="submitComment" class="btn-primary">
+                            <i class="material-icons">send</i>
+                            Publier
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal pour les réactions -->
+        <div id="reactionsModal" class="modal">
+            <div class="modal-content reactions-modal">
+                <div class="modal-header">
+                    <h2>
+                        <i class="material-icons">emoji_emotions</i>
+                        Réagir
+                    </h2>
+                    <button class="close-modal">
+                        <i class="material-icons">close</i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="reactions-grid" id="reactionsGrid">
+                        <!-- Les réactions seront chargées ici dynamiquement -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal pour le partage -->
+        <div id="shareModal" class="modal">
+            <div class="modal-content share-modal">
+                <div class="modal-header">
+                    <h2>
+                        <i class="material-icons">share</i>
+                        Partager
+                    </h2>
+                    <button class="close-modal">
+                        <i class="material-icons">close</i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="share-options" id="shareOptions">
+                        <!-- Les options de partage seront chargées ici -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
+        // Initialiser AOS
+        AOS.init({
+            duration: 800,
+            once: true,
+            offset: 100
+        });
+
+        // Variables globales
         let currentPollId = null;
         let currentManagePollId = null;
         let allPolls = [];
@@ -905,6 +1501,12 @@
         let confirmActionCallback = null;
         let confirmActionType = null;
         
+        // Variables du système de commentaires et réactions
+        let currentReactionPollId = null;
+        let currentSharePollId = null;
+        let activeReactionPreview = null;
+        let hidePreviewTimeout = null;
+        
         // Pagination variables
         let currentPage = 1;
         const pollsPerPage = 2; // 2 sondages par page
@@ -912,6 +1514,16 @@
         
         // Options modal variables
         let currentOptionsPoll = null;
+
+        // Constantes pour les réactions
+        const REACTIONS = [
+            { type: 'like', emoji: '👍', name: 'J\'aime' },
+            { type: 'love', emoji: '❤️', name: 'J\'adore' },
+            { type: 'wow', emoji: '😮', name: 'Wow' },
+            { type: 'haha', emoji: '😄', name: 'Haha' },
+            { type: 'sad', emoji: '😢', name: 'Triste' },
+            { type: 'angry', emoji: '😠', name: 'En colère' }
+        ];
 
         // Initialisation
         document.addEventListener('DOMContentLoaded', async () => {
@@ -923,6 +1535,9 @@
             document.getElementById('searchInput').addEventListener('input', () => filterPolls(currentTab));
             document.getElementById('categoryFilter').addEventListener('change', () => filterPolls(currentTab));
             document.getElementById('statusFilter').addEventListener('change', () => filterPolls(currentTab));
+            
+            // Initialiser les écouteurs d'événements pour le système de commentaires
+            setupEventListeners();
         });
 
         async function loadCategories() {
@@ -957,7 +1572,7 @@
 
         async function loadPolls() {
             try {
-                const response = await fetch('/api/polls');
+                const response = await fetch('/api/explorer/polls');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -975,7 +1590,7 @@
 
         function updateStats(polls) {
             const total = polls.length;
-            const active = polls.filter(p => p.is_active && p.status === 'active').length;
+            const active = polls.filter(p => p.is_active === 1).length;
             const sondages = polls.filter(p => p.poll_category === 'sondage').length;
             const participations = polls.filter(p => p.has_voted).length;
             
@@ -1008,6 +1623,9 @@
                 case 'my-creations':
                     filteredPolls = allPolls.filter(p => p.is_creator);
                     break;
+                case 'others-creations':
+                    filteredPolls = allPolls.filter(p => !p.is_creator);
+                    break;
                 case 'participated':
                     filteredPolls = allPolls.filter(p => p.has_voted);
                     break;
@@ -1034,7 +1652,11 @@
             }
             
             if (statusFilter !== 'all') {
-                filteredPolls = filteredPolls.filter(poll => poll.status === statusFilter);
+                if (statusFilter === 'active') {
+                    filteredPolls = filteredPolls.filter(poll => poll.is_active === 1);
+                } else if (statusFilter === 'closed') {
+                    filteredPolls = filteredPolls.filter(poll => poll.is_active === 0);
+                }
             }
             
             // Réinitialiser la pagination
@@ -1067,6 +1689,9 @@
                     break;
                 case 'my-creations':
                     filteredPolls = filteredPolls.filter(p => p.is_creator);
+                    break;
+                case 'others-creations':
+                    filteredPolls = filteredPolls.filter(p => !p.is_creator);
                     break;
                 case 'participated':
                     filteredPolls = filteredPolls.filter(p => p.has_voted);
@@ -1201,71 +1826,102 @@
         }
 
         function createPollCard(poll) {
+            const isCreator = poll.is_creator === 1;
+            const isActive = poll.is_active === 1;
+            const hasVoted = poll.has_voted;
+            const canVote = isActive && !hasVoted && !isCreator;
+            
+            // Calculer les réactions regroupées
+            const reactionsByType = {};
+            if (poll.reactions && Array.isArray(poll.reactions)) {
+                poll.reactions.forEach(reaction => {
+                    if (!reactionsByType[reaction.reaction_type]) {
+                        reactionsByType[reaction.reaction_type] = {
+                            count: 0,
+                            users: []
+                        };
+                    }
+                    reactionsByType[reaction.reaction_type].count += reaction.count;
+                });
+            }
+            
+            const totalReactions = Object.values(reactionsByType).reduce((sum, r) => sum + r.count, 0);
+            const userReactionType = poll.user_reaction;
+            
             const now = new Date();
             const endTime = new Date(poll.end_time);
-            const isActive = now < endTime && poll.status === 'active';
-            const hasVoted = poll.has_voted;
             const timeLeft = getTimeLeft(endTime);
             
-            // Badge de type
+            // Badge de type avec dégradé
             const typeBadge = poll.poll_category === 'sondage' ? 
-                '<span class="type-badge type-sondage">Sondage</span>' :
-                '<span class="type-badge type-vote">Vote</span>';
+                '<span class="type-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm">Sondage</span>' :
+                '<span class="type-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-sm">Vote</span>';
             
-            // Badge de statut
+            // Badge de statut avec animation
             const statusBadge = isActive ? 
-                `<span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium pulse">${timeLeft}</span>` :
-                `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">Terminé</span>`;
+                `<div class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-full">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span class="text-sm font-medium text-green-700">${timeLeft}</span>
+                </div>` :
+                `<div class="px-4 py-2 bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-full">
+                    <span class="text-sm font-medium text-gray-600">Terminé</span>
+                </div>`;
             
-            // Badge de catégorie
+            // Badge de catégorie avec style amélioré
             const categoryClass = poll.category_name ? 
                 `category-${poll.category_name.toLowerCase().replace(/[^a-z]/g, '')}` : 'category-sondage';
             const categoryBadge = poll.category_name ? 
-                `<span class="category-badge ${categoryClass}">${poll.category_name}</span>` : '';
+                `<span class="category-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white border border-gray-200 text-gray-700 shadow-sm ${categoryClass}">
+                    <span class="material-icons text-xs mr-1">label</span>${poll.category_name}
+                </span>` : '';
             
-            // Badge propriétaire
+            // Badge propriétaire avec gradient doré
             const ownerBadge = poll.is_creator ? 
-                '<span class="px-3 py-1 owner-badge rounded-full text-sm font-medium">Propriétaire</span>' : '';
+                `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm">
+                    <span class="material-icons text-xs mr-1">stars</span>Propriétaire
+                </span>` : '';
             
-            // Bouton d'action
+            // Bouton d'action avec styles améliorés
             let actionButton = '';
             if (poll.is_creator) {
-                // Le créateur peut gérer mais pas voter
                 actionButton = `
                     <button onclick="openManageModal(${poll.id})" 
-                            class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 modal-transition">
-                        <span class="material-icons text-sm mr-1">settings</span>
+                            class="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-medium shadow-md hover:shadow-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-200 transform hover:scale-105">
+                        <span class="material-icons text-sm mr-2">settings</span>
                         Gérer
                     </button>
                 `;
-            } else if (poll.is_active) {
-                // Les autres utilisateurs peuvent voter si actif
+            } else if (isActive) {
                 actionButton = hasVoted ? 
-                    `<button class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-default">
-                        <span class="material-icons text-sm mr-1">check</span>
+                    `<button class="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-600 rounded-lg font-medium cursor-default shadow-sm">
+                        <span class="material-icons text-sm mr-2">check_circle</span>
                         Déjà voté
                     </button>` :
                     `<button onclick="openVoteModal(${poll.id})" 
-                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 modal-transition">
-                        <span class="material-icons text-sm mr-1">how_to_vote</span>
-                        Voter maintenant
+                            class="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 transform hover:scale-105">
+                        <span class="material-icons text-sm mr-2">how_to_vote</span>
+                        Participer
                     </button>`;
             } else {
-                // Voir les résultats si terminé
                 actionButton = `
                     <button onclick="openResultsModal(${poll.id})" 
-                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 modal-transition">
-                        <span class="material-icons text-sm mr-1">bar_chart</span>
+                            class="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-200 transform hover:scale-105">
+                        <span class="material-icons text-sm mr-2">bar_chart</span>
                         Voir résultats
                     </button>
                 `;
             }
             
-            // Avertissement si créateur ne peut pas voter (pour les votes officiels)
+            // Avertissement créateur avec meilleur style
             const creatorWarning = poll.is_creator && poll.poll_category === 'vote' ? 
-                `<div class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                    <span class="material-icons text-sm mr-1">info</span>
-                    En tant que créateur d'un vote officiel, vous ne pouvez pas participer.
+                `<div class="mt-4 flex items-start gap-3 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl">
+                    <span class="material-icons text-amber-600 mt-0.5">info</span>
+                    <p class="text-sm text-amber-800 leading-relaxed">
+                        En tant que créateur d'un vote officiel, vous ne pouvez pas participer.
+                    </p>
                 </div>` : '';
             
             // Limiter à 3 options affichées
@@ -1273,29 +1929,34 @@
             const remainingOptions = poll.options.length - 3;
             
             return `
-                <div class="poll-card bg-white rounded-xl shadow-lg overflow-hidden ${isActive ? 'border-l-4 border-blue-500' : 'border-l-4 border-gray-400'}">
+                <div class="poll-card group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border ${isActive ? 'border-blue-200' : 'border-gray-200'}">
+                    ${isActive ? '<div class="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>' : '<div class="h-1 bg-gradient-to-r from-gray-300 to-gray-400"></div>'}
+                    
                     <div class="p-6">
-                        <div class="flex justify-between items-start mb-4">
+                        <div class="flex justify-between items-start mb-5">
                             <div class="flex-1">
-                                <div class="flex items-center space-x-2 mb-2">
+                                <div class="flex flex-wrap items-center gap-2 mb-3">
                                     ${typeBadge}
                                     ${categoryBadge}
                                     ${ownerBadge}
                                 </div>
-                                <h3 class="text-xl font-bold text-gray-800 mb-2">${poll.title}</h3>
-                                <p class="text-gray-600 mb-3">${poll.question}</p>
-                                <div class="flex items-center space-x-4 text-sm text-gray-500">
-                                    <span class="flex items-center">
-                                        <span class="material-icons text-base mr-1">person</span>
-                                        ${poll.creator_name}
+                                <h3 class="text-2xl font-bold text-gray-900 mb-2 leading-tight group-hover:text-blue-600 transition-colors">
+                                    ${escapeHtml(poll.title)}
+                                </h3>
+                                <p class="text-gray-600 mb-4 leading-relaxed">${escapeHtml(poll.question)}</p>
+                                
+                                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                    <span class="inline-flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg">
+                                        <span class="material-icons text-base">person</span>
+                                        <span class="font-medium">${escapeHtml(poll.creator_name)}</span>
                                     </span>
-                                    <span class="flex items-center">
-                                        <span class="material-icons text-base mr-1">schedule</span>
+                                    <span class="inline-flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg">
+                                        <span class="material-icons text-base">schedule</span>
                                         ${formatDate(poll.created_at)}
                                     </span>
-                                    <span class="flex items-center">
-                                        <span class="material-icons text-base mr-1">group</span>
-                                        ${poll.total_votes || 0} participants
+                                    <span class="inline-flex items-center gap-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 px-3 py-1.5 rounded-lg">
+                                        <span class="material-icons text-base text-blue-600">group</span>
+                                        <span class="font-medium text-blue-700">${poll.total_votes || 0} participants</span>
                                     </span>
                                 </div>
                             </div>
@@ -1303,34 +1964,41 @@
                         </div>
                         
                         ${poll.description ? `
-                            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                                <p class="text-sm text-gray-600">${poll.description}</p>
+                            <div class="mb-5 p-4 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border border-gray-100">
+                                <p class="text-sm text-gray-700 leading-relaxed italic">${escapeHtml(poll.description)}</p>
                             </div>
                         ` : ''}
                         
-                        <div class="mb-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-medium text-gray-700">Options:</span>
-                                <span class="text-sm text-gray-500">${poll.poll_type === 'single' ? 'Choix unique' : 'Choix multiple'}</span>
+                        <div class="mb-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                    <span class="material-icons text-base text-blue-600">ballot</span>
+                                    Options disponibles
+                                </span>
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                                    <span class="material-icons text-xs">${poll.poll_type === 'single' ? 'radio_button_checked' : 'check_box'}</span>
+                                    ${poll.poll_type === 'single' ? 'Choix unique' : 'Choix multiple'}
+                                </span>
                             </div>
-                            <div class="space-y-2">
-                                ${optionsToShow.map(option => `
-                                    <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            <div class="space-y-2.5">
+                                ${optionsToShow.map((option, index) => `
+                                    <div class="flex items-center p-3.5 bg-gradient-to-r from-gray-50 to-slate-50 hover:from-blue-50 hover:to-indigo-50 rounded-xl border border-gray-100 hover:border-blue-200 transition-all duration-200 group/option">
                                         ${option.option_image ? 
-                                            `<img src="${option.option_image}" alt="${option.option_text}" 
-                                                  class="w-12 h-12 object-cover rounded mr-3">` : 
-                                            `<div class="w-12 h-12 bg-blue-100 rounded flex items-center justify-center mr-3">
+                                            `<img src="${option.option_image}" alt="${escapeHtml(option.option_text)}" 
+                                                  class="w-14 h-14 object-cover rounded-lg mr-3 shadow-sm border border-gray-200 group-hover/option:scale-105 transition-transform">` : 
+                                            `<div class="w-14 h-14 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center mr-3 shadow-sm group-hover/option:scale-105 transition-transform">
                                                 <span class="material-icons text-blue-600">description</span>
                                             </div>`
                                         }
-                                        <span class="text-gray-700">${option.option_text}</span>
+                                        <span class="flex-1 text-gray-800 font-medium">${escapeHtml(option.option_text)}</span>
+                                        <span class="text-xs font-semibold text-gray-400 bg-white px-2 py-1 rounded-full">#${index + 1}</span>
                                     </div>
                                 `).join('')}
                                 ${remainingOptions > 0 ? 
-                                    `<div class="text-center text-gray-500 text-sm py-2">
+                                    `<div class="text-center pt-2">
                                         <button onclick="openOptionsModal(${poll.id})" 
-                                                class="text-blue-600 hover:text-blue-700 underline flex items-center justify-center mx-auto">
-                                            <span class="material-icons text-sm mr-1">expand_more</span>
+                                                class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-medium text-sm hover:bg-blue-50 px-4 py-2 rounded-lg transition-all">
+                                            <span class="material-icons text-sm">expand_more</span>
                                             Voir ${remainingOptions} option(s) supplémentaire(s)
                                         </button>
                                     </div>` : ''
@@ -1340,16 +2008,543 @@
                         
                         ${creatorWarning}
                         
-                        <div class="flex justify-between items-center pt-4 border-t">
+                        <!-- Section des réactions (copiée du code1) -->
+                        ${totalReactions > 0 ? `
+                            <div class="reactions-summary">
+                                ${Object.entries(reactionsByType).map(([type, data]) => {
+                                    const reaction = REACTIONS.find(r => r.type === type);
+                                    return `
+                                        <div class="reaction-count" onclick="showReactionDetails(${poll.id}, '${type}')">
+                                            <span class="reaction-emoji">${reaction ? reaction.emoji : '👍'}</span>
+                                            <span class="reaction-user-count">${data.count}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Section des interactions (copiée du code1) -->
+                        <div class="poll-interactions">
+                            <div class="interactions-left">
+                                <div class="reaction-btn-wrapper">
+                                    <button class="interaction-btn reaction-btn ${userReactionType ? 'active' : ''}" 
+                                            data-poll-id="${poll.id}"
+                                            onmouseenter="showReactionPreview(${poll.id}, this)"
+                                            onmouseleave="scheduleHidePreview()"
+                                            onclick="if(!event.target.closest('.reaction-preview')) showReactionsModal(${poll.id})">
+                                        ${userReactionType ? 
+                                            `<span class="reaction-emoji">${getReactionEmoji(userReactionType)}</span>` :
+                                            `<i class="material-icons">thumb_up</i>`
+                                        }
+                                        <span>${totalReactions || 0}</span>
+                                    </button>
+                                    <div class="reaction-preview" id="reactionPreview-${poll.id}">
+                                        ${REACTIONS.map(reaction => `
+                                            <button class="emoji-btn" 
+                                                    onmouseenter="clearHidePreview()"
+                                                    onmouseleave="scheduleHidePreview()"
+                                                    onclick="submitReaction(${poll.id}, '${reaction.type}'); hideReactionPreview()">
+                                                ${reaction.emoji}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <button class="interaction-btn comment-btn" onclick="showComments(${poll.id})">
+                                    <i class="material-icons">comment</i>
+                                    <span>${poll.comments_count || 0}</span>
+                                </button>
+                                <button class="interaction-btn share-btn" onclick="showShareModal(${poll.id})">
+                                    <i class="material-icons">share</i>
+                                    <span>${poll.total_shares || 0}</span>
+                                </button>
+                            </div>
+                            <div class="interactions-right">
+                                <button class="interaction-btn view-btn">
+                                    <i class="material-icons">visibility</i>
+                                    <span>${poll.total_views || 0}</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-3 justify-between items-center pt-5 border-t border-gray-100">
                             ${actionButton}
-                            <div class="text-sm text-gray-500">
-                                ${isActive ? 'Se termine: ' + formatDate(poll.end_time) : 'Terminé: ' + formatDate(poll.end_time)}
+                            <div class="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
+                                <span class="material-icons text-sm">${isActive ? 'timer' : 'event_available'}</span>
+                                <span>${isActive ? 'Se termine: ' : 'Terminé: '}</span>
+                                <span class="font-medium text-gray-700">${formatDate(poll.end_time)}</span>
                             </div>
                         </div>
                     </div>
                 </div>
             `;
         }
+
+        // ==================== FONCTIONS DU SYSTÈME DE COMMENTAIRES ET RÉACTIONS ====================
+
+        function setupEventListeners() {
+            // Fermer les modals du système de commentaires
+            document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.closest('.modal').classList.remove('active');
+                });
+            });
+
+            // Cliquer en dehors du modal
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                    }
+                });
+            });
+
+            // Soumettre un commentaire
+            document.getElementById('submitComment').addEventListener('click', submitComment);
+            
+            document.getElementById('commentInput').addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 'Enter') {
+                    submitComment();
+                }
+            });
+
+            // Fermer la prévisualisation des réactions en cliquant ailleurs
+            document.addEventListener('click', function(e) {
+                if (activeReactionPreview && !e.target.closest('.reaction-btn-wrapper')) {
+                    hideReactionPreview();
+                }
+            });
+
+            // Empêcher la fermeture quand on survole la prévisualisation
+            document.addEventListener('mouseover', function(e) {
+                if (activeReactionPreview && e.target.closest('.reaction-preview')) {
+                    clearTimeout(hidePreviewTimeout);
+                }
+            });
+        }
+
+        function showReactionPreview(pollId, button) {
+            hideReactionPreview();
+            
+            const preview = document.getElementById(`reactionPreview-${pollId}`);
+            if (preview) {
+                preview.classList.add('show');
+                activeReactionPreview = preview;
+                
+                const rect = button.getBoundingClientRect();
+                preview.style.left = '0';
+                preview.style.bottom = '100%';
+            }
+        }
+
+        function hideReactionPreview() {
+            if (activeReactionPreview) {
+                activeReactionPreview.classList.remove('show');
+                activeReactionPreview = null;
+            }
+            clearTimeout(hidePreviewTimeout);
+        }
+
+        function scheduleHidePreview() {
+            clearTimeout(hidePreviewTimeout);
+            hidePreviewTimeout = setTimeout(hideReactionPreview, 300);
+        }
+
+        function clearHidePreview() {
+            clearTimeout(hidePreviewTimeout);
+        }
+
+        function showReactionsModal(pollId) {
+            currentReactionPollId = pollId;
+            const modal = document.getElementById('reactionsModal');
+            const grid = document.getElementById('reactionsGrid');
+            
+            hideReactionPreview();
+            modal.classList.add('active');
+            
+            const poll = allPolls.find(p => p.id === pollId);
+            const userReaction = poll ? poll.user_reaction : null;
+            
+            grid.innerHTML = REACTIONS.map(reaction => `
+                <div class="reaction-choice ${userReaction === reaction.type ? 'active' : ''}" 
+                     onclick="submitReaction(${pollId}, '${reaction.type}')">
+                    <div class="reaction-emoji-large">${reaction.emoji}</div>
+                    <div class="reaction-name">${reaction.name}</div>
+                </div>
+            `).join('');
+        }
+
+        async function submitReaction(pollId, reactionType) {
+            try {
+                const response = await fetch(`/api/polls/${pollId}/react`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reaction_type: reactionType })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('reactionsModal').classList.remove('active');
+                    await loadPolls();
+                    showSuccess(data.message || 'Réaction enregistrée');
+                } else {
+                    showError(data.message || 'Erreur lors de la réaction');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showError('Erreur de connexion');
+            }
+        }
+
+        async function showReactionDetails(pollId, reactionType) {
+            try {
+                const response = await fetch(`/api/polls/${pollId}/reactions/${reactionType}`);
+                const data = await response.json();
+
+                if (data.success && data.users && data.users.length > 0) {
+                    const userList = data.users.slice(0, 10).join(', ');
+                    const moreCount = data.users.length > 10 ? ` et ${data.users.length - 10} autres` : '';
+                    alert(`${userList}${moreCount} ont réagi avec ${getReactionEmoji(reactionType)}`);
+                } else {
+                    showInfo('Aucun utilisateur avec cette réaction');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+
+        async function showComments(pollId) {
+            currentPollId = pollId;
+            const modal = document.getElementById('commentsModal');
+            const container = document.getElementById('commentsContainer');
+            
+            modal.classList.add('active');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            try {
+                const response = await fetch(`/api/polls/${pollId}/comments`);
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.comments.length === 0) {
+                        container.innerHTML = '<p style="text-align: center; color: #999;">Aucun commentaire pour le moment</p>';
+                    } else {
+                        container.innerHTML = renderComments(data.comments);
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                container.innerHTML = '<p style="text-align: center; color: red;">Erreur lors du chargement des commentaires</p>';
+            }
+        }
+
+        function renderComments(comments) {
+            return comments.map(comment => `
+                <div class="comment-item">
+                    <div class="comment-header">
+                        <div class="comment-author">
+                            ${escapeHtml(comment.user_name)}
+                        </div>
+                        <span class="comment-date">${formatDate(comment.created_at)}</span>
+                    </div>
+                    <div class="comment-text">
+                        ${escapeHtml(comment.comment_text)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function submitComment() {
+            const input = document.getElementById('commentInput');
+            const text = input.value.trim();
+
+            if (!text) {
+                alert('Le commentaire ne peut pas être vide');
+                return;
+            }
+
+            try {
+                const payload = {
+                    comment_text: text
+                };
+
+                const response = await fetch(`/api/polls/${currentPollId}/comment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    input.value = '';
+                    showComments(currentPollId);
+                    await loadPolls();
+                    showSuccess('Commentaire publié avec succès!');
+                } else {
+                    showError(data.message || 'Erreur lors de l\'ajout du commentaire');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showError('Erreur de connexion');
+            }
+        }
+
+        function showShareModal(pollId) {
+            currentSharePollId = pollId;
+            const modal = document.getElementById('shareModal');
+            const container = document.getElementById('shareOptions');
+            
+            modal.classList.add('active');
+            
+            const poll = allPolls.find(p => p.id === pollId);
+            if (!poll) return;
+            
+            const pollLink = `${window.location.origin}/poll/${pollId}`;
+            const pollTitle = encodeURIComponent(poll.title || poll.question);
+            const pollDescription = encodeURIComponent(poll.description || '');
+            
+            container.innerHTML = `
+                <div class="share-option">
+                    <div class="share-option-title">Lien direct</div>
+                    <div class="share-link-container">
+                        <input type="text" class="share-link-input" value="${pollLink}" readonly id="pollLinkInput">
+                        <button class="copy-link-btn" onclick="copyPollLink(event)">
+                            <i class="material-icons">content_copy</i>
+                            Copier
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="share-option">
+                    <div class="share-option-title">Partager sur les réseaux</div>
+                    <div class="share-social-buttons">
+                        <button class="social-share-btn facebook" onclick="shareOnFacebook('${pollLink}', '${pollTitle}')">
+                            <i class="material-icons">facebook</i>
+                            Facebook
+                        </button>
+                        <button class="social-share-btn twitter" onclick="shareOnTwitter('${pollLink}', '${pollTitle}')">
+                            <i class="material-icons">flutter_dash</i>
+                            Twitter
+                        </button>
+                        <button class="social-share-btn whatsapp" onclick="shareOnWhatsApp('${pollLink}', '${pollTitle}')">
+                            <i class="material-icons">whatsapp</i>
+                            WhatsApp
+                        </button>
+                        <button class="social-share-btn linkedin" onclick="shareOnLinkedIn('${pollLink}', '${pollTitle}', '${pollDescription}')">
+                            <i class="material-icons">linkedin</i>
+                            LinkedIn
+                        </button>
+                        <button class="social-share-btn email" onclick="shareByEmail('${pollLink}', '${pollTitle}')">
+                            <i class="material-icons">email</i>
+                            Email
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="share-option">
+                    <div class="share-option-title">Code d'intégration</div>
+                    <div class="share-link-container">
+                        <input type="text" class="share-link-input" value='<iframe src="${pollLink}/embed" width="400" height="600" frameborder="0"></iframe>' readonly id="embedCodeInput">
+                        <button class="copy-link-btn" onclick="copyEmbedCode()">
+                            <i class="material-icons">content_copy</i>
+                            Copier
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function copyPollLink(event) {
+    event.preventDefault(); // Empêcher le comportement par défaut
+    
+    const input = document.getElementById('pollLinkInput');
+    
+    // Sélectionner le texte
+    input.select();
+    input.setSelectionRange(0, 99999); // Pour les mobiles
+    
+    try {
+        // Utiliser l'API Clipboard moderne
+        navigator.clipboard.writeText(input.value).then(() => {
+            // Afficher un feedback visuel
+            const button = event.target.closest('.copy-link-btn');
+            if (button) {
+                const originalText = button.innerHTML;
+                const originalClass = button.className;
+                
+                button.innerHTML = '<i class="material-icons">check</i> Copié!';
+                button.className = 'copy-link-btn copied';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.className = originalClass;
+                }, 2000);
+            }
+            
+            // Afficher une notification
+            showSuccess('Lien copié dans le presse-papier!');
+        }).catch(err => {
+            // Fallback pour les anciens navigateurs
+            document.execCommand('copy');
+            
+            // Afficher un feedback visuel même avec le fallback
+            const button = event.target.closest('.copy-link-btn');
+            if (button) {
+                const originalText = button.innerHTML;
+                const originalClass = button.className;
+                
+                button.innerHTML = '<i class="material-icons">check</i> Copié!';
+                button.className = 'copy-link-btn copied';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.className = originalClass;
+                }, 2000);
+            }
+            
+            showSuccess('Lien copié dans le presse-papier!');
+        });
+    } catch (error) {
+        // Fallback pour les navigateurs très anciens
+        try {
+            document.execCommand('copy');
+            showSuccess('Lien copié dans le presse-papier!');
+        } catch (err) {
+            showError('Impossible de copier le lien. Veuillez le sélectionner manuellement.');
+        }
+    }
+}
+
+        function copyEmbedCode(event) {
+    event.preventDefault(); // Empêcher le comportement par défaut
+    
+    const input = document.getElementById('embedCodeInput');
+    
+    // Sélectionner le texte
+    input.select();
+    input.setSelectionRange(0, 99999); // Pour les mobiles
+    
+    try {
+        // Utiliser l'API Clipboard moderne
+        navigator.clipboard.writeText(input.value).then(() => {
+            // Afficher un feedback visuel
+            const button = event.target.closest('.copy-link-btn');
+            if (button) {
+                const originalText = button.innerHTML;
+                const originalClass = button.className;
+                
+                button.innerHTML = '<i class="material-icons">check</i> Copié!';
+                button.className = 'copy-link-btn copied';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.className = originalClass;
+                }, 2000);
+            }
+            
+            // Afficher une notification
+            showSuccess('Code d\'intégration copié!');
+        }).catch(err => {
+            // Fallback pour les anciens navigateurs
+            document.execCommand('copy');
+            
+            // Afficher un feedback visuel même avec le fallback
+            const button = event.target.closest('.copy-link-btn');
+            if (button) {
+                const originalText = button.innerHTML;
+                const originalClass = button.className;
+                
+                button.innerHTML = '<i class="material-icons">check</i> Copié!';
+                button.className = 'copy-link-btn copied';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.className = originalClass;
+                }, 2000);
+            }
+            
+            showSuccess('Code d\'intégration copié!');
+        });
+    } catch (error) {
+        // Fallback pour les navigateurs très anciens
+        try {
+            document.execCommand('copy');
+            showSuccess('Code d\'intégration copié!');
+        } catch (err) {
+            showError('Impossible de copier le code. Veuillez le sélectionner manuellement.');
+        }
+    }
+}
+
+        function showCopySuccess(buttonId) {
+            const button = document.querySelector(`.copy-link-btn[onclick*="${buttonId}"]`);
+            if (button) {
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="material-icons">check</i> Copié!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }
+        }
+
+        function shareOnFacebook(link, title) {
+            const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}&quote=${title}`;
+            window.open(url, '_blank', 'width=600,height=400');
+            trackShare('facebook');
+        }
+
+        function shareOnTwitter(link, title) {
+            const url = `https://twitter.com/intent/tweet?url=${encodeURIComponent(link)}&text=${title}`;
+            window.open(url, '_blank', 'width=600,height=400');
+            trackShare('twitter');
+        }
+
+        function shareOnWhatsApp(link, title) {
+            const url = `https://wa.me/?text=${encodeURIComponent(title + ' ' + link)}`;
+            window.open(url, '_blank', 'width=600,height=400');
+            trackShare('whatsapp');
+        }
+
+        function shareOnLinkedIn(link, title, description) {
+            const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}&title=${title}&summary=${description}`;
+            window.open(url, '_blank', 'width=600,height=400');
+            trackShare('linkedin');
+        }
+
+        function shareByEmail(link, title) {
+            const url = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent('Regarde ce sondage intéressant: ' + link)}`;
+            window.location.href = url;
+            trackShare('email');
+        }
+
+        async function trackShare(platform) {
+            try {
+                await fetch(`/api/polls/${currentSharePollId}/share`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        share_platform: platform,
+                        share_message: `Partagé sur ${platform}`
+                    })
+                });
+                
+                await loadPolls();
+            } catch (error) {
+                console.error('Erreur de suivi du partage:', error);
+            }
+        }
+
+        // ==================== FONCTIONS DU CODE2 EXISTANT ====================
 
         // Modal pour voir toutes les options
         function openOptionsModal(pollId) {
@@ -1368,7 +2563,7 @@
                     <div class="flex items-start">
                         <div class="flex-shrink-0 mr-3">
                             ${option.option_image ? 
-                                `<img src="${option.option_image}" alt="${option.option_text}" 
+                                `<img src="${option.option_image}" alt="${escapeHtml(option.option_text)}" 
                                       class="w-16 h-16 object-cover rounded">` : 
                                 `<div class="w-16 h-16 bg-blue-100 rounded flex items-center justify-center">
                                     <span class="material-icons text-blue-600">description</span>
@@ -1379,7 +2574,7 @@
                             <div class="flex items-center mb-1">
                                 <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">Option ${index + 1}</span>
                             </div>
-                            <p class="text-sm font-medium text-gray-800">${option.option_text}</p>
+                            <p class="text-sm font-medium text-gray-800">${escapeHtml(option.option_text)}</p>
                         </div>
                     </div>
                 </div>
@@ -1395,7 +2590,7 @@
             currentOptionsPoll = null;
         }
 
-        // Gestion des autres modals (restent inchangés)...
+        // Gestion des autres modals
         function openCreateModal() {
             const now = new Date();
             now.setHours(now.getHours() + 24);
@@ -1424,8 +2619,8 @@
             
             const pollInfo = `
                 <div class="space-y-2">
-                    <h4 class="font-bold text-lg">${poll.title}</h4>
-                    <p class="text-gray-600">${poll.question}</p>
+                    <h4 class="font-bold text-lg">${escapeHtml(poll.title)}</h4>
+                    <p class="text-gray-600">${escapeHtml(poll.question)}</p>
                     <div class="flex flex-wrap gap-4 text-sm">
                         <span class="flex items-center">
                             <span class="material-icons text-base mr-1">category</span>
@@ -1437,7 +2632,7 @@
                         </span>
                         <span class="flex items-center">
                             <span class="material-icons text-base mr-1">schedule</span>
-                            Statut: ${poll.status === 'active' ? 'Actif' : 'Terminé'}
+                            Statut: ${poll.is_active === 1 ? 'Actif' : 'Terminé'}
                         </span>
                     </div>
                 </div>
@@ -1467,7 +2662,7 @@
             document.getElementById('editCategory').value = poll.category_id || '';
             
             document.getElementById('editPollType').textContent = poll.poll_category === 'sondage' ? 'Sondage' : 'Vote officiel';
-            document.getElementById('editPollStatus').textContent = poll.status === 'active' ? 'Actif' : 'Terminé';
+            document.getElementById('editPollStatus').textContent = poll.is_active === 1 ? 'Actif' : 'Terminé';
             document.getElementById('editEndTime').textContent = formatDate(poll.end_time);
             document.getElementById('editOptionsCount').textContent = poll.options_count || poll.options?.length || 0;
             document.getElementById('editCreatedAt').textContent = formatDate(poll.created_at);
@@ -1525,7 +2720,7 @@
             
             openConfirmModal(
                 'Confirmer la suppression',
-                `Êtes-vous sûr de vouloir supprimer définitivement "${poll.title}" ? Cette action est irréversible et supprimera tous les votes associés.`,
+                `Êtes-vous sûr de vouloir supprimer définitivement "${escapeHtml(poll.title)}" ? Cette action est irréversible et supprimera tous les votes associés.`,
                 'delete',
                 () => deletePoll(currentManagePollId)
             );
@@ -1539,7 +2734,7 @@
             
             openConfirmModal(
                 'Confirmer la fermeture',
-                `Êtes-vous sûr de vouloir fermer "${poll.title}" ? Le sondage/vote sera terminé et les votes ne seront plus acceptés.`,
+                `Êtes-vous sûr de vouloir fermer "${escapeHtml(poll.title)}" ? Le sondage/vote sera terminé et les votes ne seront plus acceptés.`,
                 'close',
                 () => closePoll(currentManagePollId)
             );
@@ -1566,11 +2761,11 @@
                 <div class="flex flex-wrap gap-4 text-sm">
                     <span class="flex items-center">
                         <span class="material-icons text-base mr-1">title</span>
-                        <strong>${poll.title}</strong>
+                        <strong>${escapeHtml(poll.title)}</strong>
                     </span>
                     <span class="flex items-center">
                         <span class="material-icons text-base mr-1">person</span>
-                        Créé par: ${poll.creator_name}
+                        Créé par: ${escapeHtml(poll.creator_name)}
                     </span>
                     <span class="flex items-center">
                         <span class="material-icons text-base mr-1">schedule</span>
@@ -1607,11 +2802,11 @@
                                style="width: 20px; height: 20px;">
                         <div class="ml-4 flex-1">
                             ${option.option_image ? 
-                                `<img src="${option.option_image}" alt="${option.option_text}" 
+                                `<img src="${option.option_image}" alt="${escapeHtml(option.option_text)}" 
                                       class="w-full h-48 object-cover rounded-lg mb-3">` : ''
                             }
                             <label class="block text-lg font-medium text-gray-700 cursor-pointer">
-                                ${option.option_text}
+                                ${escapeHtml(option.option_text)}
                             </label>
                         </div>
                     </div>
@@ -2052,6 +3247,7 @@
             }
         }
 
+
         function closeResultsModal() {
             document.getElementById('resultsModal').classList.add('hidden');
             document.getElementById('resultsModal').classList.remove('flex');
@@ -2074,9 +3270,17 @@
 
         function formatDate(dateString) {
             const date = new Date(dateString);
-            return date.toLocaleDateString('fr-FR', {
-                day: '2-digit',
-                month: '2-digit',
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+
+            if (diff < 60) return 'À l\'instant';
+            if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
+            if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
+            if (diff < 604800) return `Il y a ${Math.floor(diff / 86400)} j`;
+            
+            return date.toLocaleDateString('fr-FR', { 
+                day: '2-digit', 
+                month: '2-digit', 
                 year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
@@ -2097,6 +3301,18 @@
             if (days > 0) return `${days}j ${hours}h`;
             if (hours > 0) return `${hours}h ${minutes}m`;
             return `${minutes} min`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getReactionEmoji(type) {
+            const reaction = REACTIONS.find(r => r.type === type);
+            return reaction ? reaction.emoji : '👍';
         }
 
         function showMessage(type, text) {
@@ -2123,6 +3339,32 @@
                 }
             }, 10000);
         }
+
+        function showSuccess(message) {
+            showMessage('success', message);
+        }
+
+        function showError(message) {
+            showMessage('error', message);
+        }
+
+        function showInfo(message) {
+            showMessage('info', message);
+        }
+
+        // Ajouter les styles d'animation pour les toasts (du code1)
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>

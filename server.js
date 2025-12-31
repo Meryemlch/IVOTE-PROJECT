@@ -131,7 +131,7 @@ app.get('/', (req, res) => {
     if (req.session.userId && req.user) {
         res.redirect('/dashboard');
     } else {
-        res.sendFile(__dirname + '/public/connexion.html');
+        res.sendFile(__dirname + '/public/acceuil.html');
     }
 });
 

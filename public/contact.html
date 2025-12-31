@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact - iVOTE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        /* Styles généraux */
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+            cursor: none; /* Cache le curseur par défaut */
+        }
+        
+        /* Curseur personnalisé */
+        .custom-cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(70, 99, 230, 0.3);
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.1s ease;
+            transform: translate(-50%, -50%);
+            mix-blend-mode: multiply;
+        }
+        
+        .cursor-dot {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4663e6;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            transition: width 0.2s, height 0.2s;
+        }
+        
+        /* Effet de hover sur les éléments interactifs */
+        a, button, .feature-card, .logo-badge, .hover-effect, .nav-link, .social-btn, input, textarea, select {
+            cursor: none !important; /* Force l'utilisation du curseur personnalisé */
+        }
+        
+        /* Effet de hover sur le curseur */
+        a:hover ~ .custom-cursor,
+        button:hover ~ .custom-cursor,
+        .feature-card:hover ~ .custom-cursor,
+        .logo-badge:hover ~ .custom-cursor,
+        .nav-link:hover ~ .custom-cursor,
+        .social-btn:hover ~ .custom-cursor,
+        input:hover ~ .custom-cursor,
+        textarea:hover ~ .custom-cursor,
+        select:hover ~ .custom-cursor {
+            transform: translate(-50%, -50%) scale(1.5);
+            background: rgba(70, 99, 230, 0.5);
+        }
+        
+        a:hover ~ .cursor-dot,
+        button:hover ~ .cursor-dot,
+        .feature-card:hover ~ .cursor-dot,
+        .logo-badge:hover ~ .cursor-dot,
+        .nav-link:hover ~ .cursor-dot,
+        .social-btn:hover ~ .cursor-dot,
+        input:hover ~ .cursor-dot,
+        textarea:hover ~ .cursor-dot,
+        select:hover ~ .cursor-dot {
+            width: 10px;
+            height: 10px;
+            background: #2a47d8;
+        }
+        
+        /* Styles pour la navigation */
+        .navbar {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .navbar-scrolled {
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12);
+        }
+        
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #4663e6, #2a47d8);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .nav-link.active::after {
+            width: 100%;
+        }
+        
+        .mobile-menu {
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+        
+        /* Styles supplémentaires */
+        .gradient-bg {
+            background: linear-gradient(135deg, #f4f7ff 0%, #e8edff 100%);
+        }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #4663e6 0%, #6a82fb 50%, #4f6af1 100%);
+        }
+        
+        .logo-badge {
+            background: linear-gradient(135deg, #4663e6 0%, #2a47d8 100%);
+            box-shadow: 0 4px 12px rgba(70, 99, 230, 0.3);
+        }
+        
+        .feature-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+        
+        .social-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .social-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 1s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Styles spécifiques pour la page contact */
+        .contact-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .contact-card:hover {
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.12);
+        }
+        
+        .contact-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
+        }
+        
+        .contact-form input,
+        .contact-form textarea,
+        .contact-form select {
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .contact-form input:focus,
+        .contact-form textarea:focus,
+        .contact-form select:focus {
+            border-color: #4663e6;
+            box-shadow: 0 0 0 3px rgba(70, 99, 230, 0.1);
+        }
+        
+        .map-container {
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        /* Responsive - Afficher le curseur par défaut sur mobile */
+        @media (max-width: 768px) {
+            body {
+                cursor: auto;
+            }
+            
+            .custom-cursor,
+            .cursor-dot {
+                display: none;
+            }
+            
+            a, button, .feature-card, .logo-badge, .hover-effect, .nav-link, .social-btn, input, textarea, select {
+                cursor: pointer !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen relative">
+
+    <!-- Curseur personnalisé -->
+    <div class="custom-cursor"></div>
+    <div class="cursor-dot"></div>
+
+    <!-- Navigation principale -->
+    <nav class="navbar fixed top-0 left-0 w-full z-50 py-4">
+        <div class="container mx-auto px-4 md:px-8">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center space-x-2">
+                    <a href="acceuil.html" class="logo-badge text-white font-bold rounded-full px-5 py-2 text-lg shadow-lg flex items-center space-x-2 hover-effect">
+                        <i class="fas fa-vote-yea"></i>
+                        <span class="hidden md:inline">iVOTE</span>
+                    </a>
+                    
+                </div>
+
+                <!-- Navigation desktop -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="acceuil.html" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm hover-effect">Accueil</a>
+                    <a href="about.html" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm hover-effect">À propos</a>
+                    <a href="contact.html" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-sm active hover-effect">Contact</a>
+                    
+                    <div class="flex items-center space-x-4 ml-4">
+                        <a href="connexion.html" class="text-blue-600 hover:text-blue-700 font-medium text-sm px-4 py-2 rounded-full hover:bg-blue-50 transition hover-effect">
+                            Se connecter
+                        </a>
+                        <a href="register.html" class="bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-6 py-2 rounded-full shadow-md hover:shadow-lg transition hover-effect">
+                            S'inscrire
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Menu mobile burger -->
+                <button id="mobile-menu-button" class="md:hidden text-gray-700 hover:text-blue-600 hover-effect">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Menu mobile -->
+        <div id="mobile-menu" class="mobile-menu md:hidden fixed top-0 right-0 w-64 h-full bg-white shadow-xl z-50 p-6">
+            <div class="flex justify-between items-center mb-8">
+                <div class="logo-badge text-white font-bold rounded-full px-5 py-2 text-lg shadow-lg flex items-center space-x-2 hover-effect">
+                    <i class="fas fa-vote-yea"></i>
+                    <span>iVOTE</span>
+                </div>
+                <button id="close-mobile-menu" class="text-gray-500 hover:text-gray-700 hover-effect">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <a href="acceuil.html" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block hover-effect">Accueil</a>
+                <a href="about.html" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block hover-effect">À propos</a>
+                <a href="contact.html" class="nav-link text-gray-700 hover:text-blue-600 font-medium text-lg block active hover-effect">Contact</a>
+                
+                <div class="pt-6 border-t border-gray-100 space-y-4">
+                    <a href="register.html" class="block text-center bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-6 py-3 rounded-full shadow-md hover:shadow-lg transition hover-effect">
+                        S'inscrire gratuitement
+                    </a>
+                    <a href="connexion.html" class="block text-center text-blue-600 hover:text-blue-700 font-medium text-sm px-6 py-3 rounded-full border border-blue-200 hover:bg-blue-50 transition hover-effect">
+                        Se connecter
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Info contact mobile -->
+            <div class="absolute bottom-6 left-6 right-6">
+                <div class="text-center text-gray-500 text-xs">
+                    <p>support@ivote.com</p>
+                    <p class="mt-1">+33 1 23 45 67 89</p>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section Contact -->
+    <section class="hero-gradient text-white overflow-hidden pt-24 pb-16">
+        <div class="container mx-auto px-4 py-8 md:py-12 relative">
+            <!-- Éléments décoratifs -->
+            <div class="absolute -left-24 top-1/4 w-48 h-48 bg-gradient-to-br from-blue-300 to-purple-300 opacity-20 rounded-full blur-3xl"></div>
+            <div class="absolute -right-24 bottom-1/4 w-48 h-48 bg-gradient-to-tr from-blue-400 to-cyan-300 opacity-20 rounded-full blur-3xl"></div>
+            
+            <div class="text-center relative z-10 max-w-4xl mx-auto fade-in">
+                <h1 class="text-4xl md:text-5xl font-bold mb-6 leading-tight">
+                    Contactez-nous
+                </h1>
+                <p class="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
+                    Notre équipe est à votre écoute pour répondre à toutes vos questions 
+                    sur la plateforme iVOTE.
+                </p>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <div class="bg-white/10 px-4 py-2 rounded-full flex items-center space-x-2 hover-effect">
+                        <i class="fas fa-clock"></i>
+                        <span>Réponse sous 24h</span>
+                    </div>
+                    <div class="bg-white/10 px-4 py-2 rounded-full flex items-center space-x-2 hover-effect">
+                        <i class="fas fa-headset"></i>
+                        <span>Support 7j/7</span>
+                    </div>
+                    <div class="bg-white/10 px-4 py-2 rounded-full flex items-center space-x-2 hover-effect">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Données sécurisées</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Contact Principale -->
+    <section class="py-16">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <!-- Carte de contact -->
+                <div class="contact-card p-8 fade-in">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2 hover-effect">Envoyez-nous un message</h2>
+                    <p class="text-gray-600 mb-8 hover-effect">Nous vous répondrons dans les plus brefs délais</p>
+                    
+                    <div id="successMessage" class="success-message mb-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle text-2xl mr-3"></i>
+                            <div>
+                                <h3 class="font-bold">Message envoyé !</h3>
+                                <p class="text-sm opacity-90">Nous vous répondrons dans les 24 heures.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="contactForm" class="contact-form space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="firstName" class="block text-gray-700 font-medium mb-2 hover-effect">Prénom *</label>
+                                <input type="text" id="firstName" name="firstName" required 
+                                       class="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover-effect"
+                                       placeholder="Votre prénom">
+                            </div>
+                            <div>
+                                <label for="lastName" class="block text-gray-700 font-medium mb-2 hover-effect">Nom *</label>
+                                <input type="text" id="lastName" name="lastName" required 
+                                       class="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover-effect"
+                                       placeholder="Votre nom">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="email" class="block text-gray-700 font-medium mb-2 hover-effect">Email *</label>
+                            <input type="email" id="email" name="email" required 
+                                   class="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover-effect"
+                                   placeholder="votre@email.com">
+                        </div>
+                        
+                        <div>
+                            <label for="phone" class="block text-gray-700 font-medium mb-2 hover-effect">Téléphone</label>
+                            <input type="tel" id="phone" name="phone" 
+                                   class="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover-effect"
+                                   placeholder="+33 1 23 45 67 89">
+                        </div>
+                        
+                        <div>
+                            <label for="subject" class="block text-gray-700 font-medium mb-2 hover-effect">Sujet *</label>
+                            <select id="subject" name="subject" required 
+                                    class="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover-effect">
+                                <option value="">Sélectionnez un sujet</option>
+                                <option value="support">Support technique</option>
+                                <option value="sales">Informations commerciales</option>
+                                <option value="partnership">Partenariat</option>
+                                <option value="press">Presse</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="message" class="block text-gray-700 font-medium mb-2 hover-effect">Message *</label>
+                            <textarea id="message" name="message" rows="6" required 
+                                      class="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover-effect"
+                                      placeholder="Votre message..."></textarea>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="checkbox" id="newsletter" name="newsletter" class="mr-3 hover-effect">
+                            <label for="newsletter" class="text-gray-600 text-sm hover-effect">
+                                Je souhaite recevoir les actualités et offres spéciales d'iVOTE
+                            </label>
+                        </div>
+                        
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:opacity-90 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-3 hover-effect">
+                            <i class="fas fa-paper-plane text-xl"></i>
+                            <span class="text-lg">Envoyer le message</span>
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Informations de contact -->
+                <div class="space-y-8 fade-in" style="animation-delay: 0.2s">
+                    <!-- Informations principales -->
+                    <div class="contact-card p-8">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-6 hover-effect">Nos coordonnées</h3>
+                        
+                        <div class="space-y-6">
+                            <div class="flex items-start space-x-4">
+                                <div class="contact-icon bg-blue-100 text-blue-600 hover-effect">
+                                    <i class="fas fa-map-marker-alt text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-lg mb-1 hover-effect">Adresse</h4>
+                                    <p class="text-gray-600 hover-effect">
+                                        123 Avenue de la Démocratie<br>
+                                        75011 Paris, France
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-4">
+                                <div class="contact-icon bg-green-100 text-green-600 hover-effect">
+                                    <i class="fas fa-phone text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-lg mb-1 hover-effect">Téléphone</h4>
+                                    <p class="text-gray-600 text-lg font-medium hover-effect">+33 1 23 45 67 89</p>
+                                    <p class="text-gray-500 text-sm mt-1 hover-effect">Lun-Ven: 9h-18h</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-4">
+                                <div class="contact-icon bg-purple-100 text-purple-600 hover-effect">
+                                    <i class="fas fa-envelope text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-lg mb-1 hover-effect">Email</h4>
+                                    <p class="text-gray-600 text-lg font-medium hover-effect">contact@ivote.com</p>
+                                    <p class="text-gray-500 text-sm mt-1 hover-effect">support@ivote.com</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Heures d'ouverture -->
+                    <div class="contact-card p-8">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-6 hover-effect">Horaires d'ouverture</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+                                <span class="text-gray-700 font-medium hover-effect">Lundi - Vendredi</span>
+                                <span class="text-blue-600 font-bold hover-effect">9h00 - 18h00</span>
+                            </div>
+                            <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+                                <span class="text-gray-700 font-medium hover-effect">Samedi</span>
+                                <span class="text-blue-600 font-bold hover-effect">10h00 - 16h00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700 font-medium hover-effect">Dimanche</span>
+                                <span class="text-gray-500 hover-effect">Fermé</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 p-4 bg-blue-50 rounded-xl">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-info-circle text-blue-600 text-xl hover-effect"></i>
+                                <div>
+                                    <p class="text-blue-800 text-sm font-medium hover-effect">
+                                        Support technique disponible 24h/24, 7j/7
+                                    </p>
+                                    <p class="text-blue-600 text-xs mt-1 hover-effect">
+                                        Pour les urgences, contactez: <strong>urgence@ivote.com</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Réseaux sociaux -->
+                    <div class="contact-card p-8">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-6 hover-effect">Suivez-nous</h3>
+                        <p class="text-gray-600 mb-6 hover-effect">Restez connecté avec iVOTE sur les réseaux sociaux</p>
+                        
+                        <div class="grid grid-cols-4 gap-4">
+                            <a href="#" class="social-btn bg-blue-600 text-white p-4 rounded-xl text-center transform hover:-translate-y-1 hover-effect">
+                                <i class="fab fa-twitter text-2xl"></i>
+                                <p class="text-xs mt-2 font-medium">Twitter</p>
+                            </a>
+                            <a href="#" class="social-btn bg-blue-800 text-white p-4 rounded-xl text-center transform hover:-translate-y-1 hover-effect">
+                                <i class="fab fa-facebook-f text-2xl"></i>
+                                <p class="text-xs mt-2 font-medium">Facebook</p>
+                            </a>
+                            <a href="#" class="social-btn bg-pink-600 text-white p-4 rounded-xl text-center transform hover:-translate-y-1 hover-effect">
+                                <i class="fab fa-instagram text-2xl"></i>
+                                <p class="text-xs mt-2 font-medium">Instagram</p>
+                            </a>
+                            <a href="#" class="social-btn bg-gray-800 text-white p-4 rounded-xl text-center transform hover:-translate-y-1 hover-effect">
+                                <i class="fab fa-github text-2xl"></i>
+                                <p class="text-xs mt-2 font-medium">GitHub</p>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-16 bg-gradient-to-b from-blue-50 to-indigo-50">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-12 fade-in">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4 hover-effect">
+                    Questions fréquentes
+                </h2>
+                <p class="text-gray-600 text-lg max-w-2xl mx-auto hover-effect">
+                    Trouvez rapidement des réponses à vos questions les plus courantes
+                </p>
+            </div>
+            
+            <div class="max-w-3xl mx-auto">
+                <div class="space-y-4 fade-in">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 feature-card">
+                        <button class="faq-question w-full flex justify-between items-center text-left hover-effect">
+                            <span class="font-bold text-gray-800 text-lg hover-effect">Quel est le délai de réponse ?</span>
+                            <i class="fas fa-chevron-down text-blue-600 hover-effect"></i>
+                        </button>
+                        <div class="faq-answer mt-4 hidden">
+                            <p class="text-gray-600 hover-effect">
+                                Nous nous engageons à répondre à toutes vos demandes dans un délai maximum de 24 heures ouvrables. 
+                                Pour les urgences techniques, notre équipe est disponible 24h/24 via l'adresse urgence@ivote.com.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 feature-card">
+                        <button class="faq-question w-full flex justify-between items-center text-left hover-effect">
+                            <span class="font-bold text-gray-800 text-lg hover-effect">Comment organiser une démonstration ?</span>
+                            <i class="fas fa-chevron-down text-blue-600 hover-effect"></i>
+                        </button>
+                        <div class="faq-answer mt-4 hidden">
+                            <p class="text-gray-600 hover-effect">
+                                Vous pouvez demander une démonstration personnalisée en remplissant le formulaire de contact 
+                                et en sélectionnant "Informations commerciales" comme sujet. Notre équipe commerciale vous 
+                                contactera pour planifier une démonstration adaptée à vos besoins.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 feature-card">
+                        <button class="faq-question w-full flex justify-between items-center text-left hover-effect">
+                            <span class="font-bold text-gray-800 text-lg hover-effect">Proposez-vous une assistance téléphonique ?</span>
+                            <i class="fas fa-chevron-down text-blue-600 hover-effect"></i>
+                        </button>
+                        <div class="faq-answer mt-4 hidden">
+                            <p class="text-gray-600 hover-effect">
+                                Oui, notre assistance téléphonique est disponible du lundi au vendredi de 9h à 18h 
+                                au +33 1 23 45 67 89. Pour les questions techniques complexes, nous privilégions 
+                                les échanges par email pour assurer un suivi écrit de la résolution.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-8">
+        <div class="container mx-auto px-4 md:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Colonne 1: Logo et description -->
+                <div>
+                    <a href="acceuil.html" class="logo-badge text-white font-bold rounded-full px-5 py-2 text-lg inline-flex items-center space-x-2 mb-4 hover-effect">
+                        <i class="fas fa-vote-yea"></i>
+                        <span>iVOTE</span>
+                    </a>
+                    <p class="text-gray-600 text-sm hover-effect">
+                        Plateforme de vote en ligne sécurisée pour la démocratie numérique moderne.
+                    </p>
+                    <div class="flex space-x-4 mt-4">
+                        <a href="#" class="text-gray-400 hover:text-blue-600 hover-effect">
+                            <i class="fab fa-twitter text-lg"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-600 hover-effect">
+                            <i class="fab fa-facebook-f text-lg"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-600 hover-effect">
+                            <i class="fab fa-linkedin-in text-lg"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-blue-600 hover-effect">
+                            <i class="fab fa-github text-lg"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Colonne 2: Liens rapides -->
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg mb-4 hover-effect">Liens rapides</h3>
+                    <ul class="space-y-2">
+                        <li><a href="acceuil.html" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Accueil</a></li>
+                        <li><a href="about.html" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">À propos</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Fonctionnalités</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Sécurité</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Tarifs</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Colonne 3: Légal -->
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg mb-4 hover-effect">Légal</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Conditions d'utilisation</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Politique de confidentialité</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Cookies</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600 text-sm hover-effect">Mentions légales</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Colonne 4: Contact -->
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg mb-4 hover-effect">Contact</h3>
+                    <ul class="space-y-2">
+                        <li class="text-gray-600 text-sm flex items-center hover-effect">
+                            <i class="fas fa-envelope mr-2 text-blue-600"></i>
+                            contact@ivote.com
+                        </li>
+                        <li class="text-gray-600 text-sm flex items-center hover-effect">
+                            <i class="fas fa-phone mr-2 text-blue-600"></i>
+                            +33 1 23 45 67 89
+                        </li>
+                        <li class="text-gray-600 text-sm flex items-center hover-effect">
+                            <i class="fas fa-map-marker-alt mr-2 text-blue-600"></i>
+                            123 Avenue de la Démocratie, Paris
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Copyright -->
+            <div class="border-t border-gray-200 mt-8 pt-6 text-center">
+                <p class="text-gray-400 text-sm hover-effect">© 2023 iVOTE. Tous droits réservés. <span class="text-blue-500 font-medium">Démocratie numérique sécurisée</span></p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // ===== CURSEUR PERSONNALISÉ =====
+            const cursor = document.querySelector('.custom-cursor');
+            const cursorDot = document.querySelector('.cursor-dot');
+            
+            // Vérifie si on est sur desktop (pour désactiver sur mobile)
+            if (window.innerWidth > 768) {
+                // Suivre le mouvement de la souris
+                document.addEventListener('mousemove', function(e) {
+                    cursor.style.left = e.clientX + 'px';
+                    cursor.style.top = e.clientY + 'px';
+                    
+                    cursorDot.style.left = e.clientX + 'px';
+                    cursorDot.style.top = e.clientY + 'px';
+                });
+                
+                // Effets de hover
+                const hoverElements = document.querySelectorAll('a, button, .feature-card, .logo-badge, .hover-effect, .nav-link, .social-btn, input, textarea, select');
+                
+                hoverElements.forEach(element => {
+                    element.addEventListener('mouseenter', function() {
+                        cursor.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                        cursor.style.background = 'rgba(70, 99, 230, 0.5)';
+                        cursorDot.style.width = '10px';
+                        cursorDot.style.height = '10px';
+                        cursorDot.style.background = '#2a47d8';
+                    });
+                    
+                    element.addEventListener('mouseleave', function() {
+                        cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                        cursor.style.background = 'rgba(70, 99, 230, 0.3)';
+                        cursorDot.style.width = '6px';
+                        cursorDot.style.height = '6px';
+                        cursorDot.style.background = '#4663e6';
+                    });
+                });
+                
+                // Effet de clic
+                document.addEventListener('mousedown', function() {
+                    cursor.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                    cursorDot.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                });
+                
+                document.addEventListener('mouseup', function() {
+                    cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+                    cursorDot.style.transform = 'translate(-50%, -50%) scale(1)';
+                });
+                
+                // Cacher le curseur quand la souris quitte la fenêtre
+                document.addEventListener('mouseout', function(e) {
+                    if (e.clientY <= 0 || e.clientX <= 0 || 
+                        (e.clientX >= window.innerWidth || e.clientY >= window.innerHeight)) {
+                        cursor.style.opacity = '0';
+                        cursorDot.style.opacity = '0';
+                    }
+                });
+                
+                // Réafficher le curseur quand la souris revient
+                document.addEventListener('mouseover', function() {
+                    cursor.style.opacity = '1';
+                    cursorDot.style.opacity = '1';
+                });
+            }
+            
+            // Animation d'entrée
+            setTimeout(() => {
+                cursor.style.transition = 'transform 0.1s ease, background 0.3s ease';
+                cursorDot.style.transition = 'width 0.2s, height 0.2s, background 0.3s ease';
+            }, 100);
+            
+            // Adapter le curseur au redimensionnement de la fenêtre
+            window.addEventListener('resize', function() {
+                if (window.innerWidth <= 768) {
+                    cursor.style.display = 'none';
+                    cursorDot.style.display = 'none';
+                } else {
+                    cursor.style.display = 'block';
+                    cursorDot.style.display = 'block';
+                }
+            });
+            
+            // ===== NAVIGATION =====
+            // Navigation scroll effect
+            window.addEventListener('scroll', function() {
+                const navbar = document.querySelector('.navbar');
+                if (window.scrollY > 50) {
+                    navbar.classList.add('navbar-scrolled');
+                } else {
+                    navbar.classList.remove('navbar-scrolled');
+                }
+            });
+            
+            // Menu mobile
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const closeMobileMenu = document.getElementById('close-mobile-menu');
+            
+            mobileMenuButton.addEventListener('click', function() {
+                mobileMenu.classList.add('open');
+                document.body.style.overflow = 'hidden';
+            });
+            
+            closeMobileMenu.addEventListener('click', function() {
+                mobileMenu.classList.remove('open');
+                document.body.style.overflow = 'auto';
+            });
+            
+            // Fermer le menu mobile en cliquant à l'extérieur
+            document.addEventListener('click', function(event) {
+                if (!mobileMenu.contains(event.target) && !mobileMenuButton.contains(event.target)) {
+                    mobileMenu.classList.remove('open');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            
+            // Fermer le menu mobile en appuyant sur Echap
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    mobileMenu.classList.remove('open');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            
+            // ===== GESTION DES LIENS =====
+            // Activer le lien actif dans la navigation
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                // Supprimer l'événement qui empêche la redirection
+                link.removeEventListener('click', function(e) { e.preventDefault(); });
+                
+                // Vérifier si le lien est actif
+                const currentPage = window.location.pathname.split('/').pop();
+                if (link.getAttribute('href') === currentPage) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+            
+            // ===== FORMULAIRE DE CONTACT =====
+            const contactForm = document.getElementById('contactForm');
+            const successMessage = document.getElementById('successMessage');
+            
+            if (contactForm) {
+                contactForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Simulation d'envoi du formulaire
+                    const submitButton = contactForm.querySelector('button[type="submit"]');
+                    const originalText = submitButton.innerHTML;
+                    
+                    // Afficher l'état de chargement
+                    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Envoi en cours...';
+                    submitButton.disabled = true;
+                    
+                    // Simulation d'un délai d'envoi
+                    setTimeout(() => {
+                        // Afficher le message de succès
+                        successMessage.style.display = 'block';
+                        
+                        // Réinitialiser le formulaire
+                        contactForm.reset();
+                        
+                        // Restaurer le bouton
+                        submitButton.innerHTML = originalText;
+                        submitButton.disabled = false;
+                        
+                        // Faire défiler vers le haut du formulaire
+                        contactForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        
+                        // Masquer le message de succès après 5 secondes
+                        setTimeout(() => {
+                            successMessage.style.display = 'none';
+                        }, 5000);
+                    }, 1500);
+                });
+            }
+            
+            // ===== FAQ ACCORDÉON =====
+            const faqQuestions = document.querySelectorAll('.faq-question');
+            faqQuestions.forEach(question => {
+                question.addEventListener('click', function() {
+                    const answer = this.nextElementSibling;
+                    const icon = this.querySelector('i');
+                    
+                    // Toggle current answer
+                    answer.classList.toggle('hidden');
+                    icon.classList.toggle('fa-chevron-down');
+                    icon.classList.toggle('fa-chevron-up');
+                    
+                    // Close other answers
+                    faqQuestions.forEach(otherQuestion => {
+                        if (otherQuestion !== this) {
+                            const otherAnswer = otherQuestion.nextElementSibling;
+                            const otherIcon = otherQuestion.querySelector('i');
+                            otherAnswer.classList.add('hidden');
+                            otherIcon.classList.remove('fa-chevron-up');
+                            otherIcon.classList.add('fa-chevron-down');
+                        }
+                    });
+                });
+            });
+            
+            // ===== ANIMATIONS AU SCROLL =====
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('fade-in');
+                    }
+                });
+            }, observerOptions);
+            
+            // Observer les éléments à animer
+            document.querySelectorAll('.fade-in').forEach(element => {
+                observer.observe(element);
+            });
+            
+            // ===== EFFETS DE HOVER =====
+            // Effet de hover sur les icônes de contact
+            const contactIcons = document.querySelectorAll('.contact-icon');
+            contactIcons.forEach(icon => {
+                icon.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.1) rotate(5deg)';
+                });
+                
+                icon.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1) rotate(0deg)';
+                });
+            });
+            
+            // Effet de hover sur les cartes
+            const featureCards = document.querySelectorAll('.feature-card');
+            featureCards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-5px)';
+                    this.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.08)';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+                });
+            });
+            
+            // ===== ANIMATION DES CHAMPS DU FORMULAIRE =====
+            const formInputs = document.querySelectorAll('.contact-form input, .contact-form textarea, .contact-form select');
+            formInputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.parentElement.classList.add('transform', 'translate-y-[-2px]');
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.parentElement.classList.remove('transform', 'translate-y-[-2px]');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
