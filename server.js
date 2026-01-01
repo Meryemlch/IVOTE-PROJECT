@@ -209,9 +209,12 @@ app.get('/forgot-password', (req, res) => {
 
 app.get('/dashboard', requireAuth, async (req, res) => {
     try {
+        const userId = req.session.userId;
+
+        // Récupérer l'utilisateur
         const [users] = await pool.execute(
             'SELECT id, prenom, nom, email, created_at FROM users WHERE id = ?',
-            [req.session.userId]
+            [userId]
         );
 
         if (users.length === 0) {
@@ -220,6 +223,60 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         }
 
         const user = users[0];
+
+        // Récupérer les statistiques de l'utilisateur
+        const [statsResult] = await pool.execute(`
+            SELECT 
+                (SELECT COUNT(*) FROM votes WHERE user_id = ?) as total_votes,
+                (SELECT COUNT(*) FROM polls WHERE created_by = ? AND status = 'active') as active_polls,
+                (SELECT COUNT(*) FROM polls WHERE created_by = ? AND status = 'closed') as completed_polls,
+                (SELECT COUNT(*) FROM polls WHERE created_by = ?) as total_polls_created,
+                (SELECT COUNT(*) FROM room_members WHERE user_id = ?) as total_rooms_joined,
+                (SELECT COUNT(*) FROM rooms WHERE owner_id = ?) as total_rooms_owned
+        `, [userId, userId, userId, userId, userId, userId]);
+
+        const stats = statsResult[0];
+
+        // Récupérer les sondages actifs de l'utilisateur (limités à 3)
+        const [activePolls] = await pool.execute(`
+            SELECT p.id, p.title, p.question, p.end_time, p.created_at,
+                   (SELECT COUNT(*) FROM votes WHERE poll_id = p.id) as vote_count
+            FROM polls p
+            WHERE p.created_by = ? AND p.status = 'active'
+            ORDER BY p.created_at DESC
+            LIMIT 3
+        `, [userId]);
+
+        // Récupérer les activités récentes (derniers 7 jours)
+        const [recentActivity] = await pool.execute(`
+            SELECT 
+                DATE(voted_at) as activity_date,
+                COUNT(*) as vote_count
+            FROM votes
+            WHERE user_id = ?
+                AND voted_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY DATE(voted_at)
+            ORDER BY activity_date ASC
+        `, [userId]);
+
+        // Formater les données pour le graphique
+        const last7Days = [];
+        const voteCounts = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            const dayName = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][date.getDay()];
+
+            last7Days.push(dayName);
+
+            const activity = recentActivity.find(a => {
+                const activityDate = new Date(a.activity_date).toISOString().split('T')[0];
+                return activityDate === dateStr;
+            });
+
+            voteCounts.push(activity ? activity.vote_count : 0);
+        }
 
         res.render('dashboard/dashboard', {
             title: 'Tableau de bord',
@@ -232,9 +289,17 @@ app.get('/dashboard', requireAuth, async (req, res) => {
                 joinDate: new Date(user.created_at).toLocaleDateString('fr-FR')
             },
             stats: {
-                totalVotes: 0,
-                activePolls: 0,
-                completedPolls: 0
+                totalVotes: stats.total_votes || 0,
+                activePolls: stats.active_polls || 0,
+                completedPolls: stats.completed_polls || 0,
+                totalPollsCreated: stats.total_polls_created || 0,
+                totalRoomsJoined: stats.total_rooms_joined || 0,
+                totalRoomsOwned: stats.total_rooms_owned || 0
+            },
+            activePolls: activePolls || [],
+            chartData: {
+                labels: last7Days,
+                data: voteCounts
             }
         });
     } catch (error) {
@@ -327,6 +392,21 @@ app.get('/explorer', requireAuth, (req, res) => {
     res.render('dashboard/explorer', {
         title: 'Explorer',
         page: 'explorer',
+        user: {
+            name: `${req.user.prenom} ${req.user.nom}`,
+            email: req.user.email,
+            prenom: req.user.prenom,
+            nom: req.user.nom,
+            joinDate: req.user.created_at ? new Date(req.user.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR')
+        }
+    });
+});
+
+// Route Statistiques
+app.get('/statistics', requireAuth, (req, res) => {
+    res.render('dashboard/statistics', {
+        title: 'Statistiques',
+        page: 'statistics',
         user: {
             name: `${req.user.prenom} ${req.user.nom}`,
             email: req.user.email,
@@ -4411,6 +4491,24 @@ app.get('/room/:id/manage', requireAuth, async (req, res) => {
         const roomId = req.params.id;
         const userId = req.user.id;
 
+        // Vérifier d'abord si l'utilisateur est membre ou propriétaire de la room
+        const [memberCheck] = await pool.execute(
+            `SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?
+             UNION
+             SELECT 1 FROM rooms WHERE id = ? AND owner_id = ?`,
+            [roomId, userId, roomId, userId]
+        );
+
+        if (memberCheck.length === 0) {
+            return res.status(403).render('error', {
+                title: 'Accès Refusé',
+                message: 'Vous devez être membre de cette room pour y accéder.',
+                user: req.user,
+                page: 'error',
+                status: 403
+            });
+        }
+
         // Vérifier que l'utilisateur est propriétaire ou admin
         const [roomRows] = await pool.execute(
             `SELECT r.*, 
@@ -4427,15 +4525,23 @@ app.get('/room/:id/manage', requireAuth, async (req, res) => {
             return res.status(404).render('error', {
                 title: 'Erreur',
                 message: 'Room non trouvée',
-                user: req.user
+                user: req.user,
+                page: 'error',
+                status: 404
             });
         }
 
         const room = roomRows[0];
 
-        // Vérifier les permissions
+        // Vérifier les permissions (admin ou owner seulement)
         if (room.user_role !== 'owner' && room.user_role !== 'admin') {
-            return res.redirect(`/room/${roomId}/details`);
+            return res.status(403).render('error', {
+                title: 'Accès Refusé',
+                message: 'Seuls les administrateurs peuvent accéder à cette page.',
+                user: req.user,
+                page: 'error',
+                status: 403
+            });
         }
 
         res.render('dashboard/room-manage', {
@@ -4450,7 +4556,9 @@ app.get('/room/:id/manage', requireAuth, async (req, res) => {
         res.status(500).render('error', {
             title: 'Erreur',
             message: 'Erreur serveur',
-            user: req.user
+            user: req.user,
+            page: 'error',
+            status: 500
         });
     }
 });
@@ -4551,21 +4659,76 @@ app.get('/room/:id/user-view', requireAuth, async (req, res) => {
         const roomId = req.params.id;
         const userId = req.user.id;
 
-        // Vérifier que l'utilisateur est membre de la room
-        const [memberRows] = await pool.execute(
-            `SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-             FROM rooms r
-             LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-             WHERE r.id = ? AND r.status != 'archived'`,
-            [userId, roomId]
+        // Récupérer les informations de la room
+        const [roomRows] = await pool.execute(
+            'SELECT * FROM rooms WHERE id = ? AND status != \'archived\'',
+            [roomId]
         );
 
-        if (memberRows.length === 0) {
-            return res.redirect(`/room/${roomId}/details`);
+        if (roomRows.length === 0) {
+            return res.status(404).render('error', {
+                title: 'Erreur',
+                message: 'Room non trouvée',
+                user: req.user,
+                page: 'error',
+                status: 404
+            });
         }
 
-        const room = memberRows[0];
+        const room = roomRows[0];
 
+        // Vérifier si l'utilisateur est membre ou propriétaire
+        const [memberCheck] = await pool.execute(
+            `SELECT rm.role FROM room_members rm WHERE rm.room_id = ? AND rm.user_id = ?
+             UNION
+             SELECT 'owner' as role FROM rooms WHERE id = ? AND owner_id = ?`,
+            [roomId, userId, roomId, userId]
+        );
+
+        const isMember = memberCheck.length > 0;
+        const userRole = isMember ? memberCheck[0].role : null;
+
+        // Si la room est privée et l'utilisateur n'est pas membre, bloquer l'accès
+        if (room.room_type === 'private' && !isMember) {
+            return res.status(403).render('error', {
+                title: 'Accès Refusé',
+                message: 'Erreur de chargement : Accès refusé. Cette room est privée.',
+                user: req.user,
+                page: 'error',
+                status: 403
+            });
+        }
+
+        // Si l'utilisateur n'est pas membre d'une room publique, permettre la vue limitée
+        if (!isMember) {
+            // Récupérer les informations du propriétaire
+            const [ownerInfo] = await pool.execute(
+                'SELECT id, prenom, nom, email FROM users WHERE id = ?',
+                [room.owner_id]
+            );
+
+            return res.render('dashboard/room-user-details', {
+                title: `${room.name} - Détails`,
+                page: 'rooms',
+                user: req.user,
+                room: {
+                    id: roomId,
+                    name: room.name,
+                    description: room.description,
+                    room_type: room.room_type,
+                    status: room.status,
+                    max_members: room.max_members,
+                    current_members: 0,
+                    created_at: room.created_at,
+                    user_role: 'guest',
+                    owner_id: room.owner_id
+                },
+                owner: ownerInfo.length > 0 ? ownerInfo[0] : null,
+                isMember: false
+            });
+        }
+
+        // L'utilisateur est membre, afficher les détails complets
         // Récupérer le nombre de membres
         const [membersCount] = await pool.execute(
             'SELECT COUNT(*) as count FROM room_members WHERE room_id = ?',
@@ -4591,10 +4754,11 @@ app.get('/room/:id/user-view', requireAuth, async (req, res) => {
                 max_members: room.max_members,
                 current_members: membersCount[0].count + 1, // +1 pour le propriétaire
                 created_at: room.created_at,
-                user_role: room.user_role,
+                user_role: userRole || 'member',
                 owner_id: room.owner_id
             },
-            owner: ownerInfo.length > 0 ? ownerInfo[0] : null
+            owner: ownerInfo.length > 0 ? ownerInfo[0] : null,
+            isMember: true
         });
 
     } catch (error) {
@@ -4602,7 +4766,9 @@ app.get('/room/:id/user-view', requireAuth, async (req, res) => {
         res.status(500).render('error', {
             title: 'Erreur',
             message: 'Erreur serveur',
-            user: req.user
+            user: req.user,
+            page: 'error',
+            status: 500
         });
     }
 });
@@ -8051,6 +8217,889 @@ app.get('/api/rooms/polls/:pollId/live-results', requireAuth, async (req, res) =
         res.status(500).json({
             success: false,
             message: 'Erreur serveur'
+        });
+    }
+});
+
+// ==================== ROUTES POUR LA PAGE EXPLORER ====================
+
+// Route pour récupérer tous les sondages/votes publics pour Explorer
+// Route pour récupérer tous les sondages/votes pour Explorer
+app.get('/api/explorer/polls', requireAuth, async (req, res) => {
+    try {
+        const [polls] = await pool.execute(`
+            SELECT p.*, 
+                   pc.name as category_name,
+                   pc.icon as category_icon,
+                   pc.color as category_color,
+                   CASE 
+                       WHEN p.is_anonymous = 1 THEN 'Anonyme'
+                       ELSE CONCAT(u.prenom, ' ', u.nom)
+                   END as creator_name,
+                   CASE 
+                       WHEN p.is_anonymous = 0 THEN u.id
+                       ELSE NULL
+                   END as creator_id,
+                   (SELECT COUNT(*) FROM poll_options po WHERE po.poll_id = p.id) as options_count,
+                   (SELECT COUNT(DISTINCT user_id) FROM votes WHERE poll_id = p.id) as total_votes,
+                   (SELECT COUNT(*) FROM poll_views WHERE poll_id = p.id) as total_views,
+                   CASE 
+                       WHEN p.created_by = ? THEN 1
+                       ELSE 0
+                   END as is_creator,
+                   CASE 
+                       WHEN p.end_time > NOW() AND p.status = 'active' THEN 1
+                       ELSE 0
+                   END as is_active
+            FROM polls p
+            LEFT JOIN poll_categories pc ON p.category_id = pc.id
+            JOIN users u ON p.created_by = u.id
+            ORDER BY p.created_at DESC
+        `, [req.user.id]);
+
+        // Pour chaque sondage/vote, récupérer les détails
+        const pollsWithDetails = await Promise.all(polls.map(async (poll) => {
+            // Récupérer les options
+            const [options] = await pool.execute(`
+                SELECT id, option_text, option_image 
+                FROM poll_options 
+                WHERE poll_id = ? 
+                ORDER BY option_order
+            `, [poll.id]);
+
+            // Vérifier si l'utilisateur a voté
+            const [hasVoted] = await pool.execute(`
+                SELECT COUNT(*) as count 
+                FROM votes 
+                WHERE poll_id = ? AND user_id = ?
+            `, [poll.id, req.user.id]);
+
+            // Récupérer les réactions
+            const [reactions] = await pool.execute(`
+                SELECT reaction_type, COUNT(*) as count
+                FROM poll_reactions
+                WHERE poll_id = ?
+                GROUP BY reaction_type
+            `, [poll.id]);
+
+            // Vérifier si l'utilisateur a réagi
+            const [userReaction] = await pool.execute(`
+                SELECT reaction_type
+                FROM poll_reactions
+                WHERE poll_id = ? AND user_id = ?
+            `, [poll.id, req.user.id]);
+
+            // Récupérer le nombre de commentaires
+            const [commentsCount] = await pool.execute(`
+                SELECT COUNT(*) as count
+                FROM poll_comments
+                WHERE poll_id = ? AND is_deleted = 0
+            `, [poll.id]);
+
+            // Enregistrer la vue (seulement si ce n'est pas le créateur)
+            if (poll.is_creator !== 1) {
+                await pool.execute(`
+                    INSERT IGNORE INTO poll_views (poll_id, user_id)
+                    VALUES (?, ?)
+                `, [poll.id, req.user.id]);
+            }
+
+            return {
+                ...poll,
+                options,
+                has_voted: hasVoted[0].count > 0,
+                reactions: reactions,
+                user_reaction: userReaction[0]?.reaction_type || null,
+                comments_count: commentsCount[0].count,
+                time_remaining: poll.is_active ? Math.max(0, Math.floor((new Date(poll.end_time) - new Date()) / 1000)) : 0
+            };
+        }));
+
+        res.json({
+            success: true,
+            polls: pollsWithDetails
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des sondages Explorer:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour ajouter une réaction
+app.post('/api/polls/:id/react', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+    const { reaction_type } = req.body;
+
+    const validReactions = ['like', 'love', 'wow', 'haha', 'sad', 'angry'];
+    if (!validReactions.includes(reaction_type)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Type de réaction invalide'
+        });
+    }
+
+    try {
+        // Vérifier si l'utilisateur a déjà réagi
+        const [existing] = await pool.execute(`
+            SELECT id, reaction_type FROM poll_reactions
+            WHERE poll_id = ? AND user_id = ?
+        `, [pollId, req.user.id]);
+
+        if (existing.length > 0) {
+            if (existing[0].reaction_type === reaction_type) {
+                // Supprimer la réaction
+                await pool.execute(`
+                    DELETE FROM poll_reactions
+                    WHERE poll_id = ? AND user_id = ?
+                `, [pollId, req.user.id]);
+
+                res.json({
+                    success: true,
+                    action: 'removed',
+                    message: 'Réaction supprimée'
+                });
+            } else {
+                // Modifier la réaction
+                await pool.execute(`
+                    UPDATE poll_reactions
+                    SET reaction_type = ?
+                    WHERE poll_id = ? AND user_id = ?
+                `, [reaction_type, pollId, req.user.id]);
+
+                res.json({
+                    success: true,
+                    action: 'updated',
+                    message: 'Réaction modifiée'
+                });
+            }
+        } else {
+            // Ajouter une nouvelle réaction
+            await pool.execute(`
+                INSERT INTO poll_reactions (poll_id, user_id, reaction_type)
+                VALUES (?, ?, ?)
+            `, [pollId, req.user.id, reaction_type]);
+
+            res.json({
+                success: true,
+                action: 'added',
+                message: 'Réaction ajoutée'
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la réaction:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour ajouter un commentaire
+app.post('/api/polls/:id/comment', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+    const { comment_text, parent_comment_id } = req.body;
+
+    if (!comment_text || comment_text.trim().length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Le commentaire ne peut pas être vide'
+        });
+    }
+
+    try {
+        const [result] = await pool.execute(`
+            INSERT INTO poll_comments (poll_id, user_id, parent_comment_id, comment_text)
+            VALUES (?, ?, ?, ?)
+        `, [pollId, req.user.id, parent_comment_id || null, comment_text.trim()]);
+
+        // Récupérer le commentaire créé avec les infos utilisateur
+        const [comment] = await pool.execute(`
+            SELECT pc.*, CONCAT(u.prenom, ' ', u.nom) as user_name
+            FROM poll_comments pc
+            JOIN users u ON pc.user_id = u.id
+            WHERE pc.id = ?
+        `, [result.insertId]);
+
+        res.json({
+            success: true,
+            message: 'Commentaire ajouté',
+            comment: comment[0]
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'ajout du commentaire:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour récupérer les commentaires
+app.get('/api/polls/:id/comments', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+
+    try {
+        const [comments] = await pool.execute(`
+            SELECT pc.*, 
+                   CONCAT(u.prenom, ' ', u.nom) as user_name,
+                   CASE WHEN pc.user_id = ? THEN 1 ELSE 0 END as is_owner
+            FROM poll_comments pc
+            JOIN users u ON pc.user_id = u.id
+            WHERE pc.poll_id = ? AND pc.is_deleted = 0
+            ORDER BY pc.created_at DESC
+        `, [req.user.id, pollId]);
+
+        res.json({
+            success: true,
+            comments: comments
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des commentaires:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour partager un sondage
+app.post('/api/polls/:id/share', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+    const { share_message, shared_to_user_id } = req.body;
+
+    try {
+        await pool.execute(`
+            INSERT INTO poll_shares (poll_id, user_id, shared_to_user_id, share_message)
+            VALUES (?, ?, ?, ?)
+        `, [pollId, req.user.id, shared_to_user_id || null, share_message || null]);
+
+        res.json({
+            success: true,
+            message: 'Sondage partagé avec succès'
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors du partage:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// Route pour récupérer les résultats (seulement après la fin)
+app.get('/api/polls/:id/results-explorer', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+
+    try {
+        const [pollRows] = await pool.execute(`
+            SELECT * FROM polls WHERE id = ?
+        `, [pollId]);
+
+        if (pollRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Sondage/vote non trouvé'
+            });
+        }
+
+        const poll = pollRows[0];
+        const now = new Date();
+        const endTime = new Date(poll.end_time);
+
+        // Vérifier si le sondage est terminé
+        if (now < endTime && poll.status === 'active') {
+            return res.status(403).json({
+                success: false,
+                message: 'Les résultats seront disponibles après la fin du ' + (poll.poll_category === 'vote' ? 'vote' : 'sondage')
+            });
+        }
+
+        // Récupérer les résultats
+        const [options] = await pool.execute(`
+            SELECT po.*, 
+                   (SELECT COUNT(*) FROM votes v WHERE v.poll_id = po.poll_id AND v.option_selected = po.id) as vote_count
+            FROM poll_options po
+            WHERE po.poll_id = ?
+            ORDER BY vote_count DESC, po.option_order
+        `, [pollId]);
+
+        res.json({
+            success: true,
+            results: options,
+            total_votes: poll.total_votes || 0
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des résultats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur'
+        });
+    }
+});
+
+// ==================== ROUTES POUR LES STATISTIQUES ====================
+
+// Route pour récupérer les statistiques générales
+app.get('/api/statistics/general', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        console.log(`📊 Chargement des statistiques pour l'utilisateur ${userId}`);
+
+        // Statistiques de l'utilisateur
+        const [userStats] = await pool.execute(`
+            SELECT 
+                (SELECT COUNT(*) FROM polls WHERE created_by = ?) as total_polls_created,
+                (SELECT COUNT(*) FROM votes WHERE user_id = ?) as total_votes_cast,
+                (SELECT COUNT(*) FROM polls WHERE created_by = ? AND status = 'active') as active_polls,
+                (SELECT COUNT(*) FROM polls WHERE created_by = ? AND status = 'closed') as closed_polls,
+                (SELECT COUNT(*) FROM poll_comments pc 
+                 JOIN polls p ON pc.poll_id = p.id 
+                 WHERE p.created_by = ?) as total_comments,
+                (SELECT COUNT(*) FROM poll_reactions pr 
+                 JOIN polls p ON pr.poll_id = p.id 
+                 WHERE p.created_by = ?) as total_reactions,
+                (SELECT COUNT(*) FROM poll_shares ps 
+                 JOIN polls p ON ps.poll_id = p.id 
+                 WHERE p.created_by = ?) as total_shares,
+                (SELECT COUNT(*) FROM poll_views pv 
+                 JOIN polls p ON pv.poll_id = p.id 
+                 WHERE p.created_by = ?) as total_views
+        `, [userId, userId, userId, userId, userId, userId, userId, userId]);
+
+        // Statistiques générales de la plateforme
+        const [platformStats] = await pool.execute(`
+            SELECT 
+                (SELECT COUNT(*) FROM users) as total_users,
+                (SELECT COUNT(*) FROM polls) as total_polls,
+                (SELECT COUNT(*) FROM votes) as total_votes,
+                (SELECT COUNT(*) FROM polls WHERE status = 'active') as active_polls_total,
+                (SELECT COUNT(*) FROM polls WHERE poll_category = 'vote') as total_votes_official,
+                (SELECT COUNT(*) FROM polls WHERE poll_category = 'sondage') as total_polls_survey,
+                (SELECT COUNT(*) FROM poll_comments) as total_comments_platform,
+                (SELECT COUNT(*) FROM poll_reactions) as total_reactions_platform,
+                (SELECT COUNT(*) FROM poll_shares) as total_shares_platform
+        `);
+
+        // Types de sondages/votes
+        const [pollTypes] = await pool.execute(`
+            SELECT 
+                poll_category as type,
+                COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM polls), 2) as percentage
+            FROM polls
+            GROUP BY poll_category
+            ORDER BY count DESC
+        `);
+
+        // Activité récente (7 derniers jours)
+        const [recentActivity] = await pool.execute(`
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as polls_created,
+                (SELECT COUNT(*) FROM votes v WHERE DATE(v.voted_at) = DATE(p.created_at)) as votes_cast
+            FROM polls p
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY DATE(created_at)
+            ORDER BY date
+        `);
+
+        // Catégories populaires
+        const [popularCategories] = await pool.execute(`
+            SELECT 
+                pc.name,
+                COUNT(p.id) as poll_count,
+                COALESCE(SUM((SELECT COUNT(*) FROM votes v WHERE v.poll_id = p.id)), 0) as total_votes
+            FROM poll_categories pc
+            LEFT JOIN polls p ON pc.id = p.category_id
+            GROUP BY pc.id, pc.name
+            ORDER BY poll_count DESC
+            LIMIT 10
+        `);
+
+        // Top sondages/votes par participation
+        const [topPolls] = await pool.execute(`
+            SELECT 
+                p.id,
+                p.title,
+                p.question,
+                p.poll_category,
+                (SELECT COUNT(*) FROM votes WHERE poll_id = p.id) as vote_count,
+                (SELECT COUNT(*) FROM poll_options WHERE poll_id = p.id) as options_count,
+                (SELECT COUNT(*) FROM poll_comments WHERE poll_id = p.id AND is_deleted = 0) as comments_count,
+                CONCAT(u.prenom, ' ', u.nom) as creator_name
+            FROM polls p
+            JOIN users u ON p.created_by = u.id
+            ORDER BY vote_count DESC
+            LIMIT 5
+        `);
+
+        // Participation de l'utilisateur
+        const [userParticipation] = await pool.execute(`
+            SELECT 
+                DATE(voted_at) as vote_date,
+                COUNT(*) as votes_per_day
+            FROM votes 
+            WHERE user_id = ?
+                AND voted_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            GROUP BY DATE(voted_at)
+            ORDER BY vote_date
+        `, [userId]);
+
+        // Statistiques de performance des sondages de l'utilisateur
+        const [userPollPerformance] = await pool.execute(`
+            SELECT 
+                p.id,
+                p.title,
+                p.poll_category,
+                p.status,
+                p.created_at,
+                p.end_time,
+                (SELECT COUNT(*) FROM votes WHERE poll_id = p.id) as total_votes,
+                (SELECT COUNT(*) FROM poll_comments WHERE poll_id = p.id AND is_deleted = 0) as total_comments,
+                (SELECT COUNT(*) FROM poll_reactions WHERE poll_id = p.id) as total_reactions,
+                (SELECT COUNT(*) FROM poll_shares WHERE poll_id = p.id) as total_shares
+            FROM polls p
+            WHERE p.created_by = ?
+            ORDER BY total_votes DESC
+            LIMIT 10
+        `, [userId]);
+
+        // Calculer le classement de l'utilisateur
+        const [userRanking] = await pool.execute(`
+            SELECT 
+                u.id,
+                CONCAT(u.prenom, ' ', u.nom) as user_name,
+                COUNT(p.id) as polls_count,
+                COALESCE(SUM((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as total_votes,
+                ROW_NUMBER() OVER (ORDER BY COALESCE(SUM((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) DESC) as ranking
+            FROM users u
+            LEFT JOIN polls p ON u.id = p.created_by
+            GROUP BY u.id, u.prenom, u.nom
+            ORDER BY total_votes DESC
+        `);
+
+        const userRank = userRanking.find(row => row.id === userId)?.ranking || 1;
+
+        // Récupérer les réactions par type
+        const [reactionsByType] = await pool.execute(`
+            SELECT 
+                pr.reaction_type,
+                COUNT(*) as count
+            FROM poll_reactions pr
+            JOIN polls p ON pr.poll_id = p.id
+            WHERE p.created_by = ?
+            GROUP BY pr.reaction_type
+            ORDER BY count DESC
+        `, [userId]);
+
+        res.json({
+            success: true,
+            data: {
+                user_stats: userStats[0] || {
+                    total_polls_created: 0,
+                    total_votes_cast: 0,
+                    active_polls: 0,
+                    closed_polls: 0,
+                    total_comments: 0,
+                    total_reactions: 0,
+                    total_shares: 0,
+                    total_views: 0
+                },
+                platform_stats: platformStats[0] || {
+                    total_users: 0,
+                    total_polls: 0,
+                    total_votes: 0,
+                    active_polls_total: 0,
+                    total_votes_official: 0,
+                    total_polls_survey: 0,
+                    total_comments_platform: 0,
+                    total_reactions_platform: 0,
+                    total_shares_platform: 0
+                },
+                poll_types: pollTypes || [],
+                recent_activity: recentActivity || [],
+                popular_categories: popularCategories || [],
+                top_polls: topPolls || [],
+                user_participation: userParticipation || [],
+                user_poll_performance: userPollPerformance || [],
+                user_ranking: userRank,
+                reactions_by_type: reactionsByType || []
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des statistiques:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur lors du chargement des statistiques',
+            error: error.message
+        });
+    }
+});
+
+// Route pour récupérer les statistiques détaillées d'un sondage
+app.get('/api/statistics/poll/:id', requireAuth, async (req, res) => {
+    const pollId = req.params.id;
+
+    console.log(`📊 Chargement des statistiques pour le sondage ${pollId}`);
+
+    try {
+        // Informations de base du sondage
+        const [pollInfo] = await pool.execute(`
+            SELECT 
+                p.*,
+                CONCAT(u.prenom, ' ', u.nom) as creator_name,
+                pc.name as category_name,
+                (SELECT COUNT(*) FROM votes WHERE poll_id = p.id) as total_votes
+            FROM polls p
+            JOIN users u ON p.created_by = u.id
+            LEFT JOIN poll_categories pc ON p.category_id = pc.id
+            WHERE p.id = ?
+        `, [pollId]);
+
+        if (pollInfo.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Sondage non trouvé'
+            });
+        }
+
+        // Statistiques des options
+        const [optionStats] = await pool.execute(`
+            SELECT 
+                po.id,
+                po.option_text,
+                po.option_image,
+                po.option_order,
+                COUNT(v.id) as vote_count,
+                ROUND(
+                    COUNT(v.id) * 100.0 / NULLIF(
+                        (SELECT COUNT(*) FROM votes WHERE poll_id = ?), 0
+                    ), 2
+                ) as percentage
+            FROM poll_options po
+            LEFT JOIN votes v ON po.id = v.option_selected
+            WHERE po.poll_id = ?
+            GROUP BY po.id, po.option_text, po.option_image, po.option_order
+            ORDER BY vote_count DESC
+        `, [pollId, pollId]);
+
+        // Participation par heure
+        const [hourlyParticipation] = await pool.execute(`
+            SELECT 
+                HOUR(voted_at) as hour,
+                COUNT(*) as vote_count
+            FROM votes
+            WHERE poll_id = ?
+            GROUP BY HOUR(voted_at)
+            ORDER BY hour
+        `, [pollId]);
+
+        // Évolution des votes dans le temps
+        const [voteTimeline] = await pool.execute(`
+            SELECT 
+                DATE(voted_at) as vote_date,
+                HOUR(voted_at) as vote_hour,
+                COUNT(*) as vote_count
+            FROM votes
+            WHERE poll_id = ?
+            GROUP BY DATE(voted_at), HOUR(voted_at)
+            ORDER BY vote_date, vote_hour
+        `, [pollId]);
+
+        // Réactions au sondage
+        const [reactionStats] = await pool.execute(`
+            SELECT 
+                reaction_type,
+                COUNT(*) as count
+            FROM poll_reactions
+            WHERE poll_id = ?
+            GROUP BY reaction_type
+            ORDER BY count DESC
+        `, [pollId]);
+
+        // Partages du sondage
+        const [shareStats] = await pool.execute(`
+            SELECT 
+                DATE(created_at) as share_date,
+                COUNT(*) as share_count
+            FROM poll_shares
+            WHERE poll_id = ?
+            GROUP BY DATE(created_at)
+            ORDER BY share_date
+        `, [pollId]);
+
+        // Analyse des commentaires
+        const [commentStats] = await pool.execute(`
+            SELECT 
+                DATE(pc.created_at) as comment_date,
+                COUNT(*) as comment_count
+            FROM poll_comments pc
+            WHERE pc.poll_id = ? AND pc.is_deleted = 0
+            GROUP BY DATE(pc.created_at)
+            ORDER BY comment_date
+        `, [pollId]);
+
+        // Taux de participation
+        const [totalUsers] = await pool.execute('SELECT COUNT(*) as count FROM users');
+        const totalVotes = pollInfo[0].total_votes || 0;
+        const participationRate = totalUsers[0]?.count > 0
+            ? ((totalVotes / totalUsers[0].count) * 100).toFixed(2)
+            : '0.00';
+
+        res.json({
+            success: true,
+            data: {
+                poll_info: pollInfo[0],
+                option_stats: optionStats,
+                hourly_participation: hourlyParticipation,
+                vote_timeline: voteTimeline,
+                reaction_stats: reactionStats,
+                share_stats: shareStats,
+                comment_stats: commentStats,
+                participation_rate: participationRate
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des statistiques du sondage:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur',
+            error: error.message
+        });
+    }
+});
+
+// Route pour les statistiques de performance
+app.get('/api/statistics/performance', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        console.log(`📈 Chargement des statistiques de performance pour l'utilisateur ${userId}`);
+
+        // Performance des sondages par catégorie
+        const [categoryPerformance] = await pool.execute(`
+            SELECT 
+                COALESCE(pc.name, 'Non catégorisé') as category_name,
+                COUNT(p.id) as poll_count,
+                COALESCE(SUM((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as total_votes,
+                ROUND(COALESCE(AVG((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0), 2) as avg_votes_per_poll,
+                COALESCE(MAX((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as max_votes,
+                COALESCE(MIN((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as min_votes,
+                ROUND(
+                    SUM(CASE WHEN p.status = 'closed' THEN 1 ELSE 0 END) * 100.0 / COUNT(p.id), 2
+                ) as completion_rate
+            FROM polls p
+            LEFT JOIN poll_categories pc ON p.category_id = pc.id
+            WHERE p.created_by = ?
+            GROUP BY pc.name
+            ORDER BY total_votes DESC
+        `, [userId]);
+
+        // Tendances temporelles
+        const [timeTrends] = await pool.execute(`
+            SELECT 
+                DATE_FORMAT(p.created_at, '%Y-%m') as month,
+                COUNT(p.id) as polls_created,
+                COALESCE(SUM((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as total_votes,
+                ROUND(COALESCE(AVG((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0), 2) as avg_votes_per_poll,
+                ROUND(
+                    SUM(CASE WHEN p.poll_category = 'vote' THEN 1 ELSE 0 END) * 100.0 / COUNT(p.id), 2
+                ) as official_vote_percentage
+            FROM polls p
+            WHERE p.created_by = ?
+                AND p.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(p.created_at, '%Y-%m')
+            ORDER BY month
+        `, [userId]);
+
+        // Engagement des utilisateurs
+        const [userEngagement] = await pool.execute(`
+            SELECT 
+                p.id,
+                p.title,
+                p.poll_category,
+                (SELECT COUNT(DISTINCT user_id) FROM votes WHERE poll_id = p.id) as unique_voters,
+                (SELECT COUNT(*) FROM poll_comments WHERE poll_id = p.id AND is_deleted = 0) as total_comments,
+                (SELECT COUNT(*) FROM poll_reactions WHERE poll_id = p.id) as total_reactions,
+                (SELECT COUNT(*) FROM poll_shares WHERE poll_id = p.id) as total_shares
+            FROM polls p
+            WHERE p.created_by = ?
+            ORDER BY unique_voters DESC
+            LIMIT 10
+        `, [userId]);
+
+        // Statistiques comparatives
+        const [comparativeStats] = await pool.execute(`
+            SELECT 
+                'Vos sondages' as source,
+                COUNT(p.id) as total_polls,
+                ROUND(COALESCE(AVG((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0), 2) as avg_votes,
+                COALESCE(MAX((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as max_votes,
+                COALESCE(MIN((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as min_votes,
+                ROUND(
+                    SUM(CASE WHEN p.status = 'closed' THEN 1 ELSE 0 END) * 100.0 / COUNT(p.id), 2
+                ) as completion_rate
+            FROM polls p
+            WHERE p.created_by = ?
+            
+            UNION ALL
+            
+            SELECT 
+                'Plateforme (moyenne)' as source,
+                COUNT(p.id) as total_polls,
+                ROUND(COALESCE(AVG((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0), 2) as avg_votes,
+                COALESCE(MAX((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as max_votes,
+                COALESCE(MIN((SELECT COUNT(*) FROM votes WHERE poll_id = p.id)), 0) as min_votes,
+                ROUND(
+                    SUM(CASE WHEN p.status = 'closed' THEN 1 ELSE 0 END) * 100.0 / COUNT(p.id), 2
+                ) as completion_rate
+            FROM polls p
+            WHERE p.created_by != ?
+        `, [userId, userId]);
+
+        res.json({
+            success: true,
+            data: {
+                category_performance: categoryPerformance || [],
+                time_trends: timeTrends || [],
+                user_engagement: userEngagement || [],
+                comparative_stats: comparativeStats || []
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des statistiques de performance:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur serveur',
+            error: error.message
+        });
+    }
+});
+
+// Route pour exporter les statistiques (version simplifiée)
+app.get('/api/statistics/export/:type', requireAuth, async (req, res) => {
+    try {
+        const exportType = req.params.type;
+        const userId = req.user.id;
+
+        console.log(`📤 Export des statistiques au format ${exportType} pour l'utilisateur ${userId}`);
+
+        // Récupérer les statistiques générales
+        const [userStats] = await pool.execute(`
+            SELECT 
+                (SELECT COUNT(*) FROM polls WHERE created_by = ?) as total_polls_created,
+                (SELECT COUNT(*) FROM votes WHERE user_id = ?) as total_votes_cast,
+                (SELECT COUNT(*) FROM polls WHERE created_by = ? AND status = 'active') as active_polls,
+                (SELECT COUNT(*) FROM polls WHERE created_by = ? AND status = 'closed') as closed_polls
+        `, [userId, userId, userId, userId]);
+
+        // Récupérer les sondages de l'utilisateur
+        const [userPolls] = await pool.execute(`
+            SELECT 
+                p.id,
+                p.title,
+                p.question,
+                p.poll_category,
+                p.status,
+                p.created_at,
+                p.end_time,
+                (SELECT COUNT(*) FROM votes WHERE poll_id = p.id) as total_votes,
+                (SELECT COUNT(*) FROM poll_comments WHERE poll_id = p.id) as total_comments
+            FROM polls p
+            WHERE p.created_by = ?
+            ORDER BY p.created_at DESC
+        `, [userId]);
+
+        const exportData = {
+            export_date: new Date().toISOString(),
+            user_id: userId,
+            user_name: req.user.prenom + ' ' + req.user.nom,
+            user_stats: userStats[0] || {},
+            polls: userPolls || [],
+            generated_at: new Date().toISOString()
+        };
+
+        if (exportType === 'json') {
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Content-Disposition', `attachment; filename=statistiques-${userId}-${Date.now()}.json`);
+            res.json(exportData);
+        } else if (exportType === 'csv') {
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename=statistiques-${userId}-${Date.now()}.csv`);
+
+            // Convertir en CSV simplifié
+            let csvContent = 'Section,Paramètre,Valeur\n';
+            csvContent += `Utilisateur,ID,${exportData.user_id}\n`;
+            csvContent += `Utilisateur,Nom,${exportData.user_name}\n`;
+            csvContent += `Utilisateur,Date d'export,${exportData.export_date}\n`;
+            csvContent += `Statistiques,Sondages créés,${exportData.user_stats.total_polls_created || 0}\n`;
+            csvContent += `Statistiques,Votes reçus,${exportData.user_stats.total_votes_cast || 0}\n`;
+            csvContent += `Statistiques,Sondages actifs,${exportData.user_stats.active_polls || 0}\n`;
+            csvContent += `Statistiques,Sondages terminés,${exportData.user_stats.closed_polls || 0}\n`;
+
+            // Ajouter les sondages
+            csvContent += '\nSondages,ID,Titre,Question,Catégorie,Statut,Créé le,Termine le,Votes,Commentaires\n';
+            exportData.polls.forEach(poll => {
+                csvContent += `Sondage,${poll.id},"${poll.title}","${poll.question}",${poll.poll_category},${poll.status},${poll.created_at},${poll.end_time},${poll.total_votes},${poll.total_comments}\n`;
+            });
+
+            res.send(csvContent);
+        } else {
+            res.json({
+                success: true,
+                message: 'Format non pris en charge. Utilisez "json" ou "csv"',
+                data: exportData
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'exportation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de l\'exportation',
+            error: error.message
+        });
+    }
+});
+
+// Route pour vérifier la santé des statistiques
+app.get('/api/statistics/health', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const [basicStats] = await pool.execute(`
+            SELECT 
+                (SELECT COUNT(*) FROM polls WHERE created_by = ?) as polls_count,
+                (SELECT COUNT(*) FROM votes WHERE user_id = ?) as votes_count
+        `, [userId, userId]);
+
+        res.json({
+            success: true,
+            status: 'healthy',
+            user_id: userId,
+            polls_count: basicStats[0]?.polls_count || 0,
+            votes_count: basicStats[0]?.votes_count || 0,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('❌ Erreur de santé des statistiques:', error);
+        res.status(500).json({
+            success: false,
+            status: 'unhealthy',
+            error: error.message
         });
     }
 });
