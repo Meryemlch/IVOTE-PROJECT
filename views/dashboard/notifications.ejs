@@ -1,86 +1,761 @@
-<div class="container mx-auto">
-    <div class="flex justify-between items-center mb-8">
-        <h2 class="text-2xl font-bold text-gray-800">Notifications</h2>
-        <button class="text-sm text-indigo-600 hover:text-indigo-800">
-            Tout marquer comme lu
-        </button>
-    </div>
-
-    <!-- Liste des notifications -->
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <% const notifications = [
-            { type: 'vote', title: 'Nouveau vote reçu', desc: 'Quelqu\'un a voté sur votre sondage "Opinion sur le projet"', time: 'Il y a 5 min', unread: true },
-            { type: 'comment', title: 'Nouveau commentaire', desc: 'Jean a commenté votre publication', time: 'Il y a 1 heure', unread: true },
-            { type: 'friend', title: 'Invitation reçue', desc: 'Marie veut vous ajouter comme ami', time: 'Il y a 2 heures', unread: true },
-            { type: 'system', title: 'Mise à jour système', desc: 'Nouvelle fonctionnalité disponible', time: 'Il y a 1 jour', unread: false },
-            { type: 'reminder', title: 'Rappel de vote', desc: 'Votre sondage se termine dans 24h', time: 'Il y a 2 jours', unread: false }
-        ] %>
-        
-        <% notifications.forEach((notif, index) => { %>
-        <div class="border-b last:border-b-0 hover:bg-gray-50 <%= notif.unread ? 'bg-blue-50' : '' %>">
-            <div class="flex items-start p-4">
-                <div class="mr-4">
-                    <% if(notif.type === 'vote') { %>
-                    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <span class="material-icons text-green-600">how_to_vote</span>
-                    </div>
-                    <% } else if(notif.type === 'comment') { %>
-                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span class="material-icons text-blue-600">comment</span>
-                    </div>
-                    <% } else if(notif.type === 'friend') { %>
-                    <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <span class="material-icons text-purple-600">person_add</span>
-                    </div>
-                    <% } else { %>
-                    <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                        <span class="material-icons text-gray-600">info</span>
-                    </div>
-                    <% } %>
-                </div>
-                
-                <div class="flex-1">
-                    <h4 class="font-medium text-gray-800"><%= notif.title %></h4>
-                    <p class="text-gray-600 text-sm mt-1"><%= notif.desc %></p>
-                    <p class="text-gray-400 text-xs mt-2"><%= notif.time %></p>
-                </div>
-                
-                <div class="ml-4">
-                    <% if(notif.unread) { %>
-                    <span class="block w-2 h-2 bg-blue-500 rounded-full"></span>
-                    <% } %>
-                </div>
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Notifications</h1>
+                <p class="text-gray-600">Restez informé de toutes les activités sur votre compte</p>
+            </div>
+            <div class="flex space-x-3">
+                <% if (unreadCount > 0) { %>
+                    <button 
+                        id="markAllReadBtn"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center"
+                    >
+                        <span class="material-icons text-sm mr-2">done_all</span>
+                        Tout marquer comme lu
+                    </button>
+                <% } %>
+                <button 
+                    id="refreshBtn"
+                    class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center"
+                >
+                    <span class="material-icons text-sm mr-2">refresh</span>
+                    Actualiser
+                </button>
             </div>
         </div>
-        <% }) %>
-    </div>
-
-    <!-- Paramètres de notification -->
-    <div class="mt-12 bg-white rounded-xl shadow-lg p-6">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">Paramètres de notification</h3>
         
-        <div class="space-y-4">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-medium text-gray-700">Notifications par email</p>
-                    <p class="text-sm text-gray-500">Recevoir des emails pour les activités importantes</p>
+        <!-- Stats -->
+        <div class="flex space-x-4 mt-4">
+            <div class="flex items-center">
+                <span class="material-icons text-blue-500 mr-2">notifications</span>
+                
+            </div>
+            <% if (unreadCount > 0) { %>
+                <div class="flex items-center">
+                    <span class="material-icons text-green-500 mr-2">notifications_active</span>
+                    <span class="text-gray-600">
+                        <span id="unreadCount" class="font-bold text-green-600"><%= unreadCount %></span> non lues
+                    </span>
                 </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
+            <% } %>
+        </div>
+    </div>
+    
+    <!-- Liste des notifications -->
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <% if (notifications.length === 0) { %>
+            <div class="text-center py-12">
+                <span class="material-icons text-gray-400 text-6xl mb-4">notifications_off</span>
+                <h3 class="text-xl font-medium text-gray-600 mb-2">Aucune notification</h3>
+                <p class="text-gray-500">Vous serez notifié des nouvelles activités ici</p>
+            </div>
+        <% } else { %>
+            <div id="notificationsList" class="divide-y divide-gray-200">
+                <% notifications.forEach(notification => { %>
+                    <div 
+                        class="notification-item p-4 hover:bg-gray-50 transition <%= !notification.is_read ? 'bg-blue-50' : '' %>"
+                        data-id="<%= notification.id %>"
+                        data-type="<%= notification.type %>"
+                    >
+                        <div class="flex items-start">
+                            <!-- Icône selon le type -->
+                            <div class="flex-shrink-0 mr-4">
+                                <% if (notification.type === 'follow_request') { %>
+                                    <span class="material-icons text-blue-500 text-2xl">person_add</span>
+                                <% } else if (notification.type === 'follow_accepted') { %>
+                                    <span class="material-icons text-green-500 text-2xl">check_circle</span>
+                                <% } else if (notification.type === 'new_message') { %>
+                                    <span class="material-icons text-purple-500 text-2xl">chat</span>
+                                <% } else if (notification.type.includes('poll')) { %>
+                                    <span class="material-icons text-orange-500 text-2xl">poll</span>
+                                <% } else if (notification.type.includes('vote')) { %>
+                                    <span class="material-icons text-teal-500 text-2xl">how_to_vote</span>
+                                <% } else { %>
+                                    <span class="material-icons text-gray-500 text-2xl">notifications</span>
+                                <% } %>
+                            </div>
+                            
+                            <!-- Contenu -->
+                            <div class="flex-1">
+                                <p class="text-gray-800">
+                                    <%= notification.message %>
+                                </p>
+                                
+                                <!-- Infos supplémentaires -->
+                                <div class="flex items-center justify-between mt-2">
+                                    <div class="flex items-center space-x-4">
+                                        <% if (notification.from_user_id && notification.from_prenom) { %>
+                                            <div class="flex items-center text-gray-500 text-sm">
+                                                <span class="material-icons text-sm mr-1">person</span>
+                                                <%= notification.from_prenom %> <%= notification.from_nom %>
+                                            </div>
+                                        <% } %>
+                                        
+                                        <div class="text-gray-400 text-sm">
+                                            <%= new Date(notification.created_at).toLocaleDateString('fr-FR') %>
+                                            <%= new Date(notification.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) %>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Actions -->
+                                    <div class="flex space-x-2">
+                                        <% if (!notification.is_read) { %>
+                                            <button 
+                                                class="mark-read-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-xs flex items-center"
+                                                data-id="<%= notification.id %>"
+                                            >
+                                                <span class="material-icons text-sm mr-1">done</span>
+                                                Marquer lu
+                                            </button>
+                                        <% } %>
+                                        
+                                        <!-- Actions spécifiques selon le type -->
+                                        <% if (notification.type === 'follow_request' && notification.related_id) { %>
+                                            <div class="notification-actions flex space-x-1">
+                                                <button 
+                                                    class="accept-notif-btn px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs"
+                                                    data-id="<%= notification.id %>"
+                                                    data-follow-id="<%= notification.related_id %>"
+                                                >
+                                                    Accepter
+                                                </button>
+                                                <button 
+                                                    class="reject-notif-btn px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs"
+                                                    data-id="<%= notification.id %>"
+                                                    data-follow-id="<%= notification.related_id %>"
+                                                >
+                                                    Refuser
+                                                </button>
+                                            </div>
+                                        <% } %>
+                                        
+                                        <button 
+                                            class="delete-notif-btn px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition text-xs flex items-center"
+                                            data-id="<%= notification.id %>"
+                                        >
+                                            <span class="material-icons text-sm">delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
             </div>
             
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-medium text-gray-700">Notifications push</p>
-                    <p class="text-sm text-gray-500">Notifications sur le site web</p>
+            <!-- Chargement supplémentaire -->
+            <% if (notifications.length >= 20) { %>
+                <div id="loadMoreContainer" class="p-4 text-center border-t">
+                    <button 
+                        id="loadMoreBtn"
+                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                    >
+                        Charger plus de notifications
+                    </button>
                 </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" class="sr-only peer" checked>
-                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
-            </div>
-        </div>
+            <% } %>
+        <% } %>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let offset = 20;
+        let isLoading = false;
+        const limit = 20;
+        
+        // Marquer toutes les notifications comme lues
+        const markAllReadBtn = document.getElementById('markAllReadBtn');
+        if (markAllReadBtn) {
+            markAllReadBtn.addEventListener('click', markAllAsRead);
+        }
+        
+        // Actualiser
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => location.reload());
+        }
+        
+        // Charger plus
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', loadMoreNotifications);
+        }
+        
+        // Gestionnaires d'événements délégués
+        document.addEventListener('click', function(e) {
+            const target = e.target;
+            const markReadBtn = target.closest('.mark-read-btn');
+            const deleteBtn = target.closest('.delete-notif-btn');
+            const acceptBtn = target.closest('.accept-notif-btn');
+            const rejectBtn = target.closest('.reject-notif-btn');
+            
+            // Marquer comme lu
+            if (markReadBtn) {
+                const notificationId = markReadBtn.getAttribute('data-id');
+                markAsRead(notificationId, markReadBtn);
+            }
+            
+            // Supprimer notification
+            else if (deleteBtn) {
+                const notificationId = deleteBtn.getAttribute('data-id');
+                deleteNotification(notificationId, deleteBtn.closest('.notification-item'));
+            }
+            
+            // Accepter demande d'abonnement
+            else if (acceptBtn) {
+                const notificationId = acceptBtn.getAttribute('data-id');
+                const followId = acceptBtn.getAttribute('data-follow-id');
+                acceptFollowFromNotification(followId, notificationId, acceptBtn);
+            }
+            
+            // Refuser demande d'abonnement
+            else if (rejectBtn) {
+                const notificationId = rejectBtn.getAttribute('data-id');
+                const followId = rejectBtn.getAttribute('data-follow-id');
+                rejectFollowFromNotification(followId, notificationId, rejectBtn);
+            }
+        });
+        
+        // Fonctions
+        
+        async function markAsRead(notificationId, button) {
+            try {
+                const response = await fetch(`/api/notifications/${notificationId}/read`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+                
+                if (data.success) {
+                    const notificationElement = button.closest('.notification-item');
+                    notificationElement.classList.remove('bg-blue-50');
+                    
+                    // Mettre à jour le compteur
+                    updateUnreadCount(-1);
+                    
+                    // Cacher le bouton "Marquer comme lu"
+                    button.remove();
+                    
+                    showToast('Notification marquée comme lue', 'success');
+                } else {
+                    showToast('Erreur: ' + (data.message || 'Échec de l\'opération'), 'error');
+                }
+            } catch (error) {
+                console.error('Erreur marquer comme lu:', error);
+                showToast('Erreur lors du marquage comme lu: ' + error.message, 'error');
+            }
+        }
+        
+        async function markAllAsRead() {
+            try {
+                const response = await fetch('/api/notifications/read-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+                
+                if (data.success) {
+                    // Mettre à jour l'interface
+                    document.querySelectorAll('.notification-item').forEach(item => {
+                        item.classList.remove('bg-blue-50');
+                        const markReadBtn = item.querySelector('.mark-read-btn');
+                        if (markReadBtn) markReadBtn.remove();
+                    });
+                    
+                    // Mettre à jour le compteur
+                    const unreadCountElement = document.getElementById('unreadCount');
+                    if (unreadCountElement) {
+                        const totalUnread = parseInt(unreadCountElement.textContent);
+                        updateUnreadCount(-totalUnread);
+                    }
+                    
+                    // Masquer le bouton "Tout marquer comme lu"
+                    if (markAllReadBtn) {
+                        markAllReadBtn.remove();
+                    }
+                    
+                    showToast('Toutes les notifications marquées comme lues', 'success');
+                } else {
+                    showToast('Erreur: ' + (data.message || 'Échec de l\'opération'), 'error');
+                }
+            } catch (error) {
+                console.error('Erreur tout marquer comme lu:', error);
+                showToast('Erreur lors du marquage: ' + error.message, 'error');
+            }
+        }
+        
+        async function deleteNotification(notificationId, notificationElement) {
+            if (confirm('Supprimer cette notification ?')) {
+                try {
+                    const response = await fetch(`/api/notifications/${notificationId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                    }
+                    
+                    if (data.success) {
+                        // Supprimer l'élément
+                        notificationElement.remove();
+                        
+                        // Mettre à jour les compteurs
+                        updateTotalCount(-1);
+                        
+                        // Vérifier si la notification était non lue
+                        if (notificationElement.classList.contains('bg-blue-50')) {
+                            updateUnreadCount(-1);
+                        }
+                        
+                        showToast('Notification supprimée', 'success');
+                        
+                        // Vérifier si c'était la dernière notification
+                        const remainingNotifications = document.querySelectorAll('.notification-item');
+                        if (remainingNotifications.length === 0) {
+                            showEmptyState();
+                        }
+                    } else {
+                        showToast('Erreur: ' + (data.message || 'Échec de la suppression'), 'error');
+                    }
+                } catch (error) {
+                    console.error('Erreur suppression:', error);
+                    showToast('Erreur lors de la suppression: ' + error.message, 'error');
+                }
+            }
+        }
+        
+        async function acceptFollowFromNotification(followId, notificationId, button) {
+            const actionsDiv = button.closest('.notification-actions');
+            const notificationElement = button.closest('.notification-item');
+            
+            // Désactiver les boutons pendant le traitement
+            button.disabled = true;
+            const rejectBtn = actionsDiv ? actionsDiv.querySelector('.reject-notif-btn') : null;
+            if (rejectBtn) rejectBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/notifications/follow/accept', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        follow_id: followId,
+                        notification_id: notificationId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+                
+                if (data.success) {
+                    // SUPPRIMER LES BOUTONS D'ACTION DE MANIÈRE DÉFINITIVE
+                    if (actionsDiv) {
+                        actionsDiv.remove();
+                    }
+                    
+                    // Changer l'icône pour indiquer l'action effectuée
+                    const iconElement = notificationElement.querySelector('.material-icons');
+                    if (iconElement) {
+                        iconElement.textContent = 'check_circle';
+                        iconElement.classList.remove('text-blue-500');
+                        iconElement.classList.add('text-green-500');
+                    }
+                    
+                    // Mettre à jour le style comme lu
+                    notificationElement.classList.remove('bg-blue-50');
+                    
+                    // Supprimer le bouton "Marquer comme lu" s'il existe
+                    const markReadBtn = notificationElement.querySelector('.mark-read-btn');
+                    if (markReadBtn) {
+                        markReadBtn.remove();
+                    }
+                    
+                    // Mettre à jour le compteur
+                    updateUnreadCount(-1);
+                    
+                    showToast('Demande acceptée avec succès', 'success');
+                } else {
+                    throw new Error(data.message || 'Échec de l\'acceptation');
+                }
+            } catch (error) {
+                console.error('Erreur acceptation:', error);
+                showToast('Erreur lors de l\'acceptation: ' + error.message, 'error');
+                
+                // Réactiver les boutons en cas d'erreur
+                button.disabled = false;
+                if (rejectBtn) rejectBtn.disabled = false;
+            }
+        }
+        
+        async function rejectFollowFromNotification(followId, notificationId, button) {
+            if (confirm('Refuser cette demande d\'abonnement ?')) {
+                const actionsDiv = button.closest('.notification-actions');
+                const notificationElement = button.closest('.notification-item');
+                
+                // Désactiver les boutons pendant le traitement
+                button.disabled = true;
+                const acceptBtn = actionsDiv ? actionsDiv.querySelector('.accept-notif-btn') : null;
+                if (acceptBtn) acceptBtn.disabled = true;
+                
+                try {
+                    const response = await fetch('/api/notifications/follow/reject', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            follow_id: followId,
+                            notification_id: notificationId
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                    }
+                    
+                    if (data.success) {
+                        // SUPPRIMER LES BOUTONS D'ACTION DE MANIÈRE DÉFINITIVE
+                        if (actionsDiv) {
+                            actionsDiv.remove();
+                        }
+                        
+                        // Changer l'icône pour indiquer l'action effectuée
+                        const iconElement = notificationElement.querySelector('.material-icons');
+                        if (iconElement) {
+                            iconElement.textContent = 'block';
+                            iconElement.classList.remove('text-blue-500');
+                            iconElement.classList.add('text-red-500');
+                        }
+                        
+                        // Mettre à jour le style comme lu
+                        notificationElement.classList.remove('bg-blue-50');
+                        
+                        // Supprimer le bouton "Marquer comme lu" s'il existe
+                        const markReadBtn = notificationElement.querySelector('.mark-read-btn');
+                        if (markReadBtn) {
+                            markReadBtn.remove();
+                        }
+                        
+                        // Mettre à jour le compteur
+                        updateUnreadCount(-1);
+                        
+                        showToast('Demande refusée', 'success');
+                    } else {
+                        throw new Error(data.message || 'Échec du refus');
+                    }
+                } catch (error) {
+                    console.error('Erreur refus:', error);
+                    showToast('Erreur lors du refus: ' + error.message, 'error');
+                    
+                    // Réactiver les boutons en cas d'erreur
+                    button.disabled = false;
+                    if (acceptBtn) acceptBtn.disabled = false;
+                }
+            }
+        }
+        
+        async function loadMoreNotifications() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            if (loadMoreBtn) {
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.innerHTML = '<span class="material-icons text-sm mr-2 animate-spin">refresh</span>Chargement...';
+            }
+            
+            try {
+                const response = await fetch(`/api/notifications?limit=${limit}&offset=${offset}`);
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+                
+                if (data.success && data.notifications && data.notifications.length > 0) {
+                    appendNotifications(data.notifications);
+                    offset += data.notifications.length;
+                    
+                    // Masquer le bouton s'il n'y a plus de notifications
+                    if (data.notifications.length < limit) {
+                        const loadMoreContainer = document.getElementById('loadMoreContainer');
+                        if (loadMoreContainer) {
+                            loadMoreContainer.style.display = 'none';
+                        }
+                    }
+                } else {
+                    const loadMoreContainer = document.getElementById('loadMoreContainer');
+                    if (loadMoreContainer) {
+                        loadMoreContainer.style.display = 'none';
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Erreur chargement:', error);
+                showToast('Erreur lors du chargement: ' + error.message, 'error');
+            } finally {
+                isLoading = false;
+                
+                if (loadMoreBtn) {
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.innerHTML = 'Charger plus de notifications';
+                }
+            }
+        }
+        
+        function appendNotifications(notifications) {
+            const container = document.getElementById('notificationsList');
+            const loadMoreContainer = document.getElementById('loadMoreContainer');
+            
+            if (!container) return;
+            
+            notifications.forEach(notification => {
+                const isRead = notification.is_read ? '' : 'bg-blue-50';
+                const fromUser = notification.from_prenom ? `
+                    <div class="flex items-center text-gray-500 text-sm">
+                        <span class="material-icons text-sm mr-1">person</span>
+                        ${escapeHtml(notification.from_prenom)} ${escapeHtml(notification.from_nom || '')}
+                    </div>
+                ` : '';
+                
+                const date = new Date(notification.created_at);
+                const dateStr = date.toLocaleDateString('fr-FR');
+                const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                
+                // Déterminer l'icône et les actions selon le type
+                let icon = 'notifications';
+                let iconColor = 'gray';
+                let actions = '';
+                
+                // Vérifier si c'est une demande d'abonnement
+                if (notification.type === 'follow_request' && notification.related_id) {
+                    // Vérifier dans le localStorage si l'action a déjà été traitée
+                    const actionKey = `notification_${notification.id}_action`;
+                    const hasAction = localStorage.getItem(actionKey);
+                    
+                    if (!hasAction) {
+                        icon = 'person_add';
+                        iconColor = 'blue';
+                        actions = `
+                            <div class="notification-actions flex space-x-1">
+                                <button 
+                                    class="accept-notif-btn px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs"
+                                    data-id="${notification.id}"
+                                    data-follow-id="${notification.related_id}"
+                                >
+                                    Accepter
+                                </button>
+                                <button 
+                                    class="reject-notif-btn px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs"
+                                    data-id="${notification.id}"
+                                    data-follow-id="${notification.related_id}"
+                                >
+                                    Refuser
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        // Si l'action a déjà été traitée, on n'affiche pas les boutons
+                        icon = hasAction === 'accepted' ? 'check_circle' : 'block';
+                        iconColor = hasAction === 'accepted' ? 'green' : 'red';
+                        actions = '';
+                    }
+                } else {
+                    // Pour les autres types de notifications
+                    switch(notification.type) {
+                        case 'follow_accepted':
+                            icon = 'check_circle';
+                            iconColor = 'green';
+                            break;
+                        case 'new_message':
+                            icon = 'chat';
+                            iconColor = 'purple';
+                            break;
+                        default:
+                            if (notification.type.includes('poll')) {
+                                icon = 'poll';
+                                iconColor = 'orange';
+                            } else if (notification.type.includes('vote')) {
+                                icon = 'how_to_vote';
+                                iconColor = 'teal';
+                            }
+                    }
+                }
+                
+                const markReadBtn = notification.is_read ? '' : `
+                    <button 
+                        class="mark-read-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-xs flex items-center"
+                        data-id="${notification.id}"
+                    >
+                        <span class="material-icons text-sm mr-1">done</span>
+                        Marquer lu
+                    </button>
+                `;
+                
+                const html = `
+                    <div class="notification-item p-4 hover:bg-gray-50 transition ${isRead}" 
+                         data-id="${notification.id}" 
+                         data-type="${notification.type}">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 mr-4">
+                                <span class="material-icons text-${iconColor}-500 text-2xl">${icon}</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-gray-800">${escapeHtml(notification.message)}</p>
+                                <div class="flex items-center justify-between mt-2">
+                                    <div class="flex items-center space-x-4">
+                                        ${fromUser}
+                                        <div class="text-gray-400 text-sm">
+                                            ${dateStr} ${timeStr}
+                                        </div>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        ${markReadBtn}
+                                        ${actions}
+                                        <button 
+                                            class="delete-notif-btn px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition text-xs flex items-center"
+                                            data-id="${notification.id}"
+                                        >
+                                            <span class="material-icons text-sm">delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.insertAdjacentHTML('beforeend', html);
+            });
+            
+            // Réinsérer le conteneur de chargement si nécessaire
+            if (loadMoreContainer && container.nextSibling !== loadMoreContainer) {
+                container.parentNode.insertBefore(loadMoreContainer, container.nextSibling);
+            }
+        }
+        
+        function updateUnreadCount(change) {
+            const unreadCountElement = document.getElementById('unreadCount');
+            
+            if (unreadCountElement) {
+                const current = parseInt(unreadCountElement.textContent) || 0;
+                const newCount = Math.max(0, current + change);
+                unreadCountElement.textContent = newCount;
+                
+                // Mettre à jour le texte
+                if (newCount === 0) {
+                    const unreadContainer = unreadCountElement.closest('.flex.items-center');
+                    if (unreadContainer) {
+                        unreadContainer.style.display = 'none';
+                    }
+                    if (markAllReadBtn) {
+                        markAllReadBtn.remove();
+                    }
+                }
+            }
+        }
+        
+        function updateTotalCount(change) {
+            const totalCountElement = document.getElementById('totalCount');
+            if (totalCountElement) {
+                const current = parseInt(totalCountElement.textContent) || 0;
+                totalCountElement.textContent = Math.max(0, current + change);
+                
+                // Si plus de notifications, afficher message vide
+                if (parseInt(totalCountElement.textContent) === 0) {
+                    showEmptyState();
+                }
+            }
+        }
+        
+        function showEmptyState() {
+            const container = document.querySelector('.bg-white.rounded-xl');
+            if (container) {
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <span class="material-icons text-gray-400 text-6xl mb-4">notifications_off</span>
+                        <h3 class="text-xl font-medium text-gray-600 mb-2">Aucune notification</h3>
+                        <p class="text-gray-500">Vous serez notifié des nouvelles activités ici</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function showToast(message, type = 'info') {
+            // Supprimer les toasts existants
+            const existingToasts = document.querySelectorAll('.toast-notification');
+            existingToasts.forEach(toast => {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            });
+            
+            const toast = document.createElement('div');
+            toast.className = `toast-notification fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${getToastClass(type)}`;
+            toast.textContent = message;
+            toast.style.transform = 'translateX(100%)';
+            
+            document.body.appendChild(toast);
+            
+            // Animation d'entrée
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 10);
+            
+            // Supprimer après 3 secondes
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        function getToastClass(type) {
+            switch(type) {
+                case 'success': return 'bg-green-500 text-white';
+                case 'error': return 'bg-red-500 text-white';
+                case 'warning': return 'bg-yellow-500 text-white';
+                default: return 'bg-indigo-500 text-white';
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    });
+</script>

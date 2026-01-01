@@ -1,0 +1,714 @@
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">Réseau Social</h1>
+
+    <!-- Description -->
+    <p class="text-gray-600 mb-8">Connectez-vous avec d'autres utilisateurs, gérez vos abonnements et découvrez de
+        nouvelles personnes</p>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 p-5 rounded-lg">
+            <div class="flex items-center">
+                <div class="p-3 bg-indigo-600 rounded-lg">
+                    <span class="material-icons text-white">group</span>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-2xl font-bold text-gray-900" id="followingCount">0</h3>
+                    <p class="text-gray-600 text-sm">Abonnements</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-lg">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-600 rounded-lg">
+                    <span class="material-icons text-white">people</span>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-2xl font-bold text-gray-900" id="followersCount">0</h3>
+                    <p class="text-gray-600 text-sm">Abonnés</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 p-5 rounded-lg">
+            <div class="flex items-center">
+                <div class="p-3 bg-yellow-600 rounded-lg">
+                    <span class="material-icons text-white">hourglass_empty</span>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-2xl font-bold text-gray-900" id="pendingCount">0</h3>
+                    <p class="text-gray-600 text-sm">Demandes en attente</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recherche -->
+    <div class="bg-white rounded-lg border border-gray-200 p-5 mb-8">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Rechercher des utilisateurs</h2>
+        <div class="relative">
+            <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
+            <input type="text" placeholder="Rechercher par nom, prénom ou email..."
+                class="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                id="searchUsers">
+        </div>
+
+        <!-- Résultats de recherche -->
+        <div id="searchResults" class="mt-4 space-y-3 hidden"></div>
+    </div>
+
+    <!-- Contenu en deux colonnes -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Suggestions -->
+        <div class="bg-white rounded-lg border border-gray-200 p-5">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Suggestions</h3>
+                <button id="refreshSuggestions" class="text-indigo-600 hover:text-indigo-800 transition"
+                    title="Rafraîchir les suggestions">
+                    <span class="material-icons">refresh</span>
+                </button>
+            </div>
+            <div id="suggestionsList" class="space-y-4">
+                <% if (suggestions.length===0) { %>
+                    <div class="text-center py-8">
+                        <span class="material-icons text-gray-400 text-5xl mb-3">person_add</span>
+                        <p class="text-gray-500">Aucune suggestion pour le moment</p>
+                    </div>
+                    <% } else { %>
+                        <% suggestions.forEach(user=> { %>
+                            <div
+                                class="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition">
+                                <div class="flex items-center">
+                                    <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                        <span class="material-icons text-indigo-600">person</span>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h4 class="font-medium text-gray-800">
+                                            <%= user.prenom %>
+                                                <%= user.nom %>
+                                        </h4>
+                                        <p class="text-gray-500 text-sm">
+                                            <%= user.email %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    class="follow-btn px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center"
+                                    data-user-id="<%= user.id %>" data-user-name="<%= user.prenom %> <%= user.nom %>">
+                                    <span class="material-icons mr-1 text-sm">person_add</span>
+                                    S'abonner
+                                </button>
+                            </div>
+                            <% }); %>
+                                <% } %>
+            </div>
+        </div>
+
+        <!-- Mes abonnements -->
+        <div class="bg-white rounded-lg border border-gray-200 p-5">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Mes abonnements</h3>
+            <div id="followingList" class="space-y-4">
+                <% if (following.length===0) { %>
+                    <div class="text-center py-8">
+                        <span class="material-icons text-gray-400 text-5xl mb-3">group</span>
+                        <p class="text-gray-500">Vous ne suivez personne pour le moment</p>
+                    </div>
+                    <% } else { %>
+                        <% following.forEach(user=> { %>
+                            <div class="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition"
+                                data-user-id="<%= user.id %>">
+                                <div class="flex items-center">
+                                    <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                        <span class="material-icons text-indigo-600">person</span>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h4 class="font-medium text-gray-800">
+                                            <%= user.prenom %>
+                                                <%= user.nom %>
+                                        </h4>
+                                        <p class="text-gray-500 text-sm">
+                                            <% if (user.status==='accepted' ) { %>
+                                                <span class="text-green-600">● Abonné</span>
+                                                <% } else if (user.status==='pending' ) { %>
+                                                    <span class="text-yellow-600">● En attente</span>
+                                                    <% } else { %>
+                                                        <span class="text-red-600">● Refusé</span>
+                                                        <% } %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    class="unfollow-btn px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition text-sm flex items-center"
+                                    data-user-id="<%= user.id %>" data-user-name="<%= user.prenom %> <%= user.nom %>">
+                                    <span class="material-icons mr-1 text-sm">person_remove</span>
+                                    Se désabonner
+                                </button>
+                            </div>
+                            <% }); %>
+                                <% } %>
+            </div>
+        </div>
+
+        <!-- Mes abonnés -->
+        <div class="bg-white rounded-lg border border-gray-200 p-5">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Mes abonnés</h3>
+                <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm" id="followersCountBadge">
+                    <%= followers.length %> personne(s)
+                </span>
+            </div>
+            <div id="followersList" class="space-y-4">
+                <% if (followers.length===0) { %>
+                    <div class="text-center py-8">
+                        <span class="material-icons text-gray-400 text-5xl mb-3">people</span>
+                        <p class="text-gray-500">Vous n'avez pas d'abonnés</p>
+                    </div>
+                    <% } else { %>
+                        <% followers.forEach(user=> { %>
+                            <div class="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition"
+                                data-user-id="<%= user.id %>">
+                                <div class="flex items-center">
+                                    <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                        <span class="material-icons text-indigo-600">person</span>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h4 class="font-medium text-gray-800">
+                                            <%= user.prenom %>
+                                                <%= user.nom %>
+                                        </h4>
+                                        <p class="text-gray-500 text-sm">
+                                            <% if (user.status==='accepted' ) { %>
+                                                <span class="text-green-600">● Accepté</span>
+                                                <% } else if (user.status==='pending' ) { %>
+                                                    <span class="text-yellow-600">● En attente</span>
+                                                    <% } else { %>
+                                                        <span class="text-red-600">● Refusé</span>
+                                                        <% } %>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <% if (user.status==='pending' ) { %>
+                                        <button
+                                            class="accept-btn px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs flex items-center"
+                                            data-follow-id="<%= user.follow_id %>" data-user-id="<%= user.id %>"
+                                            data-user-name="<%= user.prenom %> <%= user.nom %>">
+                                            <span class="material-icons text-xs mr-1">check</span>
+                                            Accepter
+                                        </button>
+                                        <button
+                                            class="reject-btn px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs flex items-center"
+                                            data-follow-id="<%= user.follow_id %>" data-user-id="<%= user.id %>"
+                                            data-user-name="<%= user.prenom %> <%= user.nom %>">
+                                            <span class="material-icons text-xs mr-1">close</span>
+                                            Refuser
+                                        </button>
+                                        <% } %>
+                                            <button
+                                                class="remove-follower-btn px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-xs flex items-center"
+                                                data-user-id="<%= user.id %>"
+                                                data-user-name="<%= user.prenom %> <%= user.nom %>">
+                                                <span class="material-icons text-xs mr-1">person_remove</span>
+                                                Supprimer
+                                            </button>
+                                </div>
+                            </div>
+                            <% }); %>
+                                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Demande d'abonnement -->
+<div id="followModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Envoyer une demande d'abonnement</h3>
+                <button id="closeFollowModal" class="text-gray-400 hover:text-gray-600">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+
+            <p class="text-gray-600 mb-6">Vous allez envoyer une demande d'abonnement à <span id="targetUserName"
+                    class="font-medium text-indigo-600"></span></p>
+
+            <div class="flex justify-end space-x-3">
+                <button id="cancelFollowBtn"
+                    class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    Annuler
+                </button>
+                <button id="confirmFollowBtn"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center">
+                    <span class="material-icons text-sm mr-1">send</span>
+                    Envoyer la demande
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let currentTargetUserId = null;
+        let currentTargetUserName = null;
+
+        // Initialisation
+        initNetworkPage();
+
+        // Rafraîchir les suggestions
+        document.getElementById('refreshSuggestions').addEventListener('click', refreshSuggestions);
+
+        // Fonction d'initialisation
+        function initNetworkPage() {
+            // Charger les statistiques
+            loadNetworkStats();
+
+            // Initialiser les boutons de suivi
+            initFollowButtons();
+
+            // Initialiser les boutons de désabonnement
+            initUnfollowButtons();
+
+            // Initialiser les boutons d'acceptation/rejet
+            initAcceptRejectButtons();
+
+            // Initialiser les boutons de suppression d'abonné
+            initRemoveFollowerButtons();
+
+            // Configurer la recherche
+            initSearch();
+
+            // Configurer le modal
+            initFollowModal();
+        }
+
+        function initFollowButtons() {
+            document.querySelectorAll('.follow-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const userId = this.getAttribute('data-user-id');
+                    const userName = this.getAttribute('data-user-name');
+                    showFollowModal(userId, userName);
+                });
+            });
+        }
+
+        function initUnfollowButtons() {
+            document.querySelectorAll('.unfollow-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const userId = this.getAttribute('data-user-id');
+                    const userName = this.getAttribute('data-user-name');
+                    unfollowUser(userId, userName);
+                });
+            });
+        }
+
+        function initAcceptRejectButtons() {
+            document.querySelectorAll('.accept-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const followId = this.getAttribute('data-follow-id');
+                    const userId = this.getAttribute('data-user-id');
+                    const userName = this.getAttribute('data-user-name');
+                    acceptFollowRequest(followId, userId, userName);
+                });
+            });
+
+            document.querySelectorAll('.reject-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const followId = this.getAttribute('data-follow-id');
+                    const userId = this.getAttribute('data-user-id');
+                    const userName = this.getAttribute('data-user-name');
+                    rejectFollowRequest(followId, userId, userName);
+                });
+            });
+        }
+
+        function initRemoveFollowerButtons() {
+            document.querySelectorAll('.remove-follower-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const userId = this.getAttribute('data-user-id');
+                    const userName = this.getAttribute('data-user-name');
+                    removeFollower(userId, userName);
+                });
+            });
+        }
+
+        function initSearch() {
+            const searchInput = document.getElementById('searchUsers');
+            const searchResults = document.getElementById('searchResults');
+
+            let searchTimeout;
+            searchInput.addEventListener('input', function () {
+                clearTimeout(searchTimeout);
+                const query = this.value.trim();
+
+                if (query.length < 2) {
+                    searchResults.classList.add('hidden');
+                    searchResults.innerHTML = '';
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    searchUsers(query);
+                }, 500);
+            });
+        }
+
+        function initFollowModal() {
+            const followModal = document.getElementById('followModal');
+            const closeFollowModal = document.getElementById('closeFollowModal');
+            const cancelFollowBtn = document.getElementById('cancelFollowBtn');
+            const confirmFollowBtn = document.getElementById('confirmFollowBtn');
+
+            if (closeFollowModal) {
+                closeFollowModal.addEventListener('click', hideFollowModal);
+            }
+
+            cancelFollowBtn.addEventListener('click', hideFollowModal);
+
+            confirmFollowBtn.addEventListener('click', () => {
+                sendFollowRequest();
+            });
+
+            // Fermer modal en cliquant en dehors
+            followModal.addEventListener('click', (e) => {
+                if (e.target === followModal) {
+                    hideFollowModal();
+                }
+            });
+        }
+
+        function showFollowModal(userId, userName) {
+            currentTargetUserId = userId;
+            currentTargetUserName = userName;
+            document.getElementById('targetUserName').textContent = userName;
+
+            const followModal = document.getElementById('followModal');
+            followModal.classList.remove('hidden');
+            followModal.classList.add('flex');
+        }
+
+        function hideFollowModal() {
+            const followModal = document.getElementById('followModal');
+            followModal.classList.add('hidden');
+            followModal.classList.remove('flex');
+            currentTargetUserId = null;
+            currentTargetUserName = null;
+        }
+
+        // ========== FONCTIONS API ==========
+
+        function loadNetworkStats() {
+            fetch('/api/network/stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('followingCount').textContent = data.stats.following;
+                        document.getElementById('followersCount').textContent = data.stats.followers;
+                        document.getElementById('pendingCount').textContent = data.stats.pending;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur stats:', error);
+                    showToast('Erreur lors du chargement des statistiques', 'error');
+                });
+        }
+
+        function refreshSuggestions() {
+            fetch('/network')
+                .then(response => {
+                    location.reload();
+                })
+                .catch(error => {
+                    console.error('Erreur rafraîchissement:', error);
+                    showToast('Erreur lors du rafraîchissement', 'error');
+                });
+        }
+
+        function sendFollowRequest() {
+            fetch('/api/network/follow/request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    following_id: currentTargetUserId
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Demande d\'abonnement envoyée avec succès!', 'success');
+                        hideFollowModal();
+
+                        // Supprimer l'utilisateur des suggestions
+                        const suggestionItem = document.querySelector(`.follow-btn[data-user-id="${currentTargetUserId}"]`);
+                        if (suggestionItem) {
+                            suggestionItem.closest('.flex.items-center').remove();
+                        }
+
+                        // Supprimer des résultats de recherche
+                        const searchItem = document.querySelector(`#searchResults .follow-btn[data-user-id="${currentTargetUserId}"]`);
+                        if (searchItem) {
+                            searchItem.closest('.flex.items-center').remove();
+                        }
+
+                        loadNetworkStats();
+                    } else {
+                        showToast('Erreur: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur envoi demande:', error);
+                    showToast('Erreur lors de l\'envoi de la demande', 'error');
+                });
+        }
+
+        function unfollowUser(userId, userName) {
+            if (confirm(`Êtes-vous sûr de vouloir vous désabonner de ${userName} ?`)) {
+                fetch('/api/network/follow/unfollow', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        following_id: userId
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast('Vous êtes désabonné!', 'success');
+
+                            // Supprimer de la liste
+                            const followingItem = document.querySelector(`#followingList [data-user-id="${userId}"]`);
+                            if (followingItem) {
+                                followingItem.remove();
+                            }
+
+                            loadNetworkStats();
+                        } else {
+                            showToast('Erreur: ' + data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur désabonnement:', error);
+                        showToast('Erreur lors du désabonnement', 'error');
+                    });
+            }
+        }
+
+        function acceptFollowRequest(followId, userId, userName) {
+            fetch('/api/network/follow/accept', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    follow_id: followId
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Mettre à jour l'interface
+                        const followerItem = document.querySelector(`#followersList [data-user-id="${userId}"]`);
+                        if (followerItem) {
+                            const actionsDiv = followerItem.querySelector('.flex.space-x-2');
+                            if (actionsDiv) {
+                                // Supprimer les boutons Accepter/Refuser
+                                const acceptBtn = actionsDiv.querySelector('.accept-btn');
+                                const rejectBtn = actionsDiv.querySelector('.reject-btn');
+                                if (acceptBtn) acceptBtn.remove();
+                                if (rejectBtn) rejectBtn.remove();
+                            }
+
+                            // Mettre à jour le statut
+                            const statusSpan = followerItem.querySelector('.text-sm span');
+                            if (statusSpan) {
+                                statusSpan.textContent = '● Accepté';
+                                statusSpan.className = 'text-green-600';
+                            }
+                        }
+
+                        showToast(`Demande de ${userName} acceptée!`, 'success');
+                        loadNetworkStats();
+                    } else {
+                        showToast('Erreur: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur acceptation:', error);
+                    showToast('Erreur lors de l\'acceptation', 'error');
+                });
+        }
+
+        function rejectFollowRequest(followId, userId, userName) {
+            if (confirm(`Êtes-vous sûr de vouloir refuser la demande de ${userName} ?`)) {
+                fetch('/api/network/follow/reject', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        follow_id: followId
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Supprimer l'élément de la liste
+                            const followerItem = document.querySelector(`#followersList [data-user-id="${userId}"]`);
+                            if (followerItem) {
+                                followerItem.remove();
+                            }
+
+                            showToast(`Demande de ${userName} refusée!`, 'success');
+                            loadNetworkStats();
+                        } else {
+                            showToast('Erreur: ' + data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur refus:', error);
+                        showToast('Erreur lors du refus', 'error');
+                    });
+            }
+        }
+
+        function removeFollower(userId, userName) {
+            if (confirm(`Êtes-vous sûr de vouloir supprimer ${userName} de vos abonnés ?`)) {
+                fetch(`/api/network/followers/${userId}`, {
+                    method: 'DELETE'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Supprimer l'élément de la liste
+                            const followerItem = document.querySelector(`#followersList [data-user-id="${userId}"]`);
+                            if (followerItem) {
+                                followerItem.remove();
+                            }
+
+                            showToast('Abonné supprimé!', 'success');
+                            loadNetworkStats();
+                        } else {
+                            showToast('Erreur: ' + data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur suppression:', error);
+                        showToast('Erreur lors de la suppression', 'error');
+                    });
+            }
+        }
+
+        function searchUsers(query) {
+            fetch(`/api/network/users/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displaySearchResults(data.users);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur recherche:', error);
+                    showToast('Erreur lors de la recherche', 'error');
+                });
+        }
+
+        function displaySearchResults(users) {
+            const searchResults = document.getElementById('searchResults');
+
+            if (users.length === 0) {
+                searchResults.innerHTML = '<p class="text-gray-500 text-center py-4">Aucun utilisateur trouvé</p>';
+                searchResults.classList.remove('hidden');
+                return;
+            }
+
+            let html = '<h3 class="font-medium text-gray-700 mb-3">Résultats:</h3>';
+
+            users.forEach(user => {
+                const isFollowing = user.is_following === 1;
+                const followStatus = user.follow_status;
+
+                html += `
+                    <div class="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition">
+                        <div class="flex items-center">
+                            <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                <span class="material-icons text-indigo-600">person</span>
+                            </div>
+                            <div class="ml-3">
+                                <h4 class="font-medium text-gray-800">${escapeHtml(user.prenom)} ${escapeHtml(user.nom)}</h4>
+                                <p class="text-gray-500 text-sm">${escapeHtml(user.email)}</p>
+                            </div>
+                        </div>
+                        ${isFollowing
+                        ? `<span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">
+                                  ${followStatus === 'pending' ? 'En attente' : 'Déjà abonné'}
+                               </span>`
+                        : `<button 
+                                   class="follow-btn px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center"
+                                   data-user-id="${user.id}"
+                                   data-user-name="${escapeHtml(user.prenom)} ${escapeHtml(user.nom)}"
+                               >
+                                   <span class="material-icons mr-1 text-sm">person_add</span>
+                                   S'abonner
+                               </button>`
+                    }
+                    </div>
+                `;
+            });
+
+            searchResults.innerHTML = html;
+            searchResults.classList.remove('hidden');
+
+            // Réattacher les événements aux nouveaux boutons
+            searchResults.querySelectorAll('.follow-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const userId = this.getAttribute('data-user-id');
+                    const userName = this.getAttribute('data-user-name');
+                    showFollowModal(userId, userName);
+                });
+            });
+        }
+
+        // ========== FONCTIONS UTILITAIRES ==========
+
+        function showToast(message, type = 'info') {
+            // Supprimer les toasts existants
+            const existingToasts = document.querySelectorAll('.toast-notification');
+            existingToasts.forEach(toast => toast.remove());
+
+            const toast = document.createElement('div');
+            toast.className = `toast-notification fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${getToastClass(type)}`;
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            // Supprimer après 3 secondes
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 3000);
+        }
+
+        function getToastClass(type) {
+            switch (type) {
+                case 'success': return 'bg-green-500 text-white';
+                case 'error': return 'bg-red-500 text-white';
+                case 'warning': return 'bg-yellow-500 text-white';
+                default: return 'bg-indigo-500 text-white';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    });
+</script>

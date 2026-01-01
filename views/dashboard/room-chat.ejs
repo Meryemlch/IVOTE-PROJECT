@@ -1,0 +1,1046 @@
+<div class="max-w-7xl mx-auto px-4 py-4">
+    <!-- Header de la room -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div class="flex-1">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-comments text-white"></i>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-900">
+                        <%= room.name %>
+                    </h1>
+                    <% if (room.type === 'private') { %>
+                        <span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+                            <i class="fas fa-lock mr-1"></i> Privée
+                        </span>
+                    <% } else { %>
+                        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                            <i class="fas fa-globe mr-1"></i> Publique
+                        </span>
+                    <% } %>
+                </div>
+                
+                <p class="text-gray-600 mb-4 ml-1">
+                    <%= room.description || 'Aucune description fournie' %>
+                </p>
+                
+                <!-- Stats Bar -->
+                <div class="flex flex-wrap items-center gap-6 ml-1">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-users text-blue-500"></i>
+                        <span class="text-gray-600">Membres:</span>
+                        <span id="membersCount" class="font-semibold text-gray-900">Chargement...</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-comment text-green-500"></i>
+                        <span class="text-gray-600">Messages:</span>
+                        <span id="messagesCount" class="font-semibold text-gray-900">0</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-calendar-alt text-indigo-500"></i>
+                        
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-2">
+                <% if (room.role === 'owner' || room.role === 'admin') { %>
+                    <button onclick="manageRoom(<%= room.id %>)" 
+                            class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-cog"></i> Gérer
+                    </button>
+                <% } %>
+                
+                <!-- Bouton Rooms modifié -->
+                <button onclick="window.location.href='/rooms'"
+                        class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition flex items-center gap-2">
+                    <i class="fas fa-home mr-2"></i>Rooms
+                </button>
+                
+                <button onclick="leaveRoom(<%= room.id %>)"
+                        class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition flex items-center gap-2">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Quitter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout principal -->
+    <div class="flex flex-col lg:flex-row gap-4 h-[calc(100vh-200px)]">
+        <!-- Sidebar Membres -->
+        <aside class="lg:w-80 bg-white rounded-lg border border-gray-200 flex flex-col hidden lg:flex">
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-users text-blue-500"></i>
+                    Membres (<span id="totalMembers">0</span>)
+                </h3>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4" id="membersList">
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p class="text-sm">Chargement...</p>
+                </div>
+            </div>
+            <div class="p-3 border-t border-gray-200 bg-gray-50">
+                <div class="flex items-center justify-between text-sm">
+                    <div class="text-gray-600">
+                        <span id="onlineCount" class="font-semibold text-green-600">0</span> en ligne
+                    </div>
+                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Zone de chat principale -->
+        <main class="flex-1 bg-white rounded-lg border border-gray-200 flex flex-col">
+            <!-- En-tête du chat -->
+            <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-comments text-blue-500"></i>
+                    <span class="font-semibold text-gray-900">Conversation</span>
+                </div>
+                <button onclick="scrollToBottom()" 
+                        id="scrollBtn" 
+                        class="hidden px-3 py-1 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+            </div>
+            
+            <!-- Messages -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-3" id="messagesContainer">
+                <div class="text-center py-12">
+                    <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-comments text-blue-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Bienvenue dans <%= room.name %>!</h3>
+                    <p class="text-gray-500 text-sm">Commencez la conversation en envoyant un message</p>
+                </div>
+            </div>
+            
+            <!-- Indicateur de frappe -->
+            <div class="px-4 pb-2">
+                <div id="typingIndicator" class="hidden text-sm text-gray-500 italic">
+                    <i class="fas fa-circle-notch fa-spin mr-2"></i>
+                    <span id="typingText">Quelqu'un écrit...</span>
+                </div>
+            </div>
+            
+            <!-- Zone d'envoi de message -->
+            <div class="p-4 border-t border-gray-200">
+                <form id="messageForm" class="flex gap-2">
+                    <div class="flex-1 relative">
+                        <textarea 
+                            id="messageInput"
+                            placeholder="Écrivez votre message ici..."
+                            rows="1"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none min-h-[3.5rem] bg-white shadow-sm"
+                            oninput="autoResize(this); handleTyping();"
+                            onkeydown="handleKeyDown(event)"
+                        ></textarea>
+                        <div class="absolute right-2 bottom-2 flex items-center gap-1">
+                            <button type="button"
+                                    onclick="toggleEmojiPicker()"
+                                    class="p-2 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-blue-50">
+                                <i class="far fa-smile"></i>
+                            </button>
+                            <button type="button"
+                                    onclick="attachFile()"
+                                    class="p-2 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-blue-50">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button 
+                        type="submit" 
+                        id="sendButton"
+                        disabled
+                        class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+                    >
+                        <i class="fas fa-paper-plane"></i>
+                        <span class="hidden md:inline">Envoyer</span>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Styles pour les messages -->
+<style>
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .message-container { 
+        animation: slideIn 0.3s ease-out; 
+    }
+    
+    .message-sent {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border-radius: 18px 18px 4px 18px;
+        color: white;
+    }
+    
+    .message-received {
+        background: #f3f4f6;
+        border-radius: 18px 18px 18px 4px;
+        color: #1f2937;
+    }
+    
+    .message-system {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 12px;
+        color: #92400e;
+    }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    @keyframes slide-in {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    .animate-slide-in {
+        animation: slide-in 0.3s ease-out;
+    }
+    
+    @keyframes bounce {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+    
+    .animate-bounce {
+        animation: bounce 0.5s ease-in-out 3;
+    }
+</style>
+
+<script>
+    // Configuration de base
+   const roomId = '<%= room.id %>';
+        const userId = '<%= user.id %>';
+        const userName = '<%= user.name %>';
+        const roomType = '<%= room.type %>';
+       
+    let socket = null;
+    let typingTimeout = null;
+    let isTyping = false;
+    let lastMessageId = null;
+    let isLoadingMessages = false;
+    let hasMoreMessages = true;
+    let onlineMembers = 0;
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeRoom();
+        loadRoomData();
+        setupEventListeners();
+        connectWebSocket();
+        startPolling();
+    });
+
+    // Initialiser la room
+    function initializeRoom() {
+        adjustScrollHeights();
+        window.addEventListener('resize', adjustScrollHeights);
+        
+        const messagesContainer = document.getElementById('messagesContainer');
+        messagesContainer.addEventListener('scroll', handleMessagesScroll);
+        
+        // Configurer l'auto-resize du textarea
+        const textarea = document.getElementById('messageInput');
+        textarea.addEventListener('focus', () => autoResize(textarea));
+    }
+
+    // Ajuster les hauteurs de scroll
+    function adjustScrollHeights() {
+        const messagesContainer = document.getElementById('messagesContainer');
+        const membersList = document.getElementById('membersList');
+        
+        if (messagesContainer) {
+            const headerHeight = 200;
+            messagesContainer.style.maxHeight = `calc(100vh - ${headerHeight}px - 180px)`;
+        }
+        
+        if (membersList) {
+            const sidebarHeight = window.innerHeight - 400;
+            membersList.style.maxHeight = `${sidebarHeight}px`;
+        }
+    }
+
+    // Charger les données de la room
+    async function loadRoomData() {
+        await Promise.all([
+            loadMembers(),
+            loadMessages(),
+            loadRoomStats()
+        ]);
+    }
+
+    // Configurer les écouteurs d'événements
+    function setupEventListeners() {
+        // Form message
+        const messageForm = document.getElementById('messageForm');
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await sendMessage();
+        });
+        
+        // Input message
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('input', () => {
+            const hasText = messageInput.value.trim().length > 0;
+            document.getElementById('sendButton').disabled = !hasText;
+        });
+    }
+
+    // Connexion WebSocket
+    function connectWebSocket() {
+        if (!window.WebSocket) {
+            console.log('WebSocket non supporté');
+            return;
+        }
+        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/room/${roomId}`;
+        
+        socket = new WebSocket(wsUrl);
+        
+        socket.onopen = function() {
+            console.log('Connecté au chat room');
+            updateConnectionStatus(true);
+        };
+        
+        socket.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            } catch (error) {
+                console.error('Erreur parsing WebSocket message:', error);
+            }
+        };
+        
+        socket.onclose = function() {
+            console.log('Déconnecté du chat room');
+            updateConnectionStatus(false);
+            setTimeout(connectWebSocket, 5000);
+        };
+        
+        socket.onerror = function(error) {
+            console.error('Erreur WebSocket:', error);
+        };
+    }
+
+    // Mettre à jour le statut de connexion
+    function updateConnectionStatus(isConnected) {
+        const statusDot = document.querySelector('.bg-green-500');
+        if (statusDot) {
+            statusDot.classList.toggle('bg-green-500', isConnected);
+            statusDot.classList.toggle('bg-red-500', !isConnected);
+            statusDot.classList.toggle('animate-pulse', isConnected);
+        }
+    }
+
+    // Polling de secours
+    function startPolling() {
+        setInterval(async () => {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                await checkNewMessages();
+                await loadMembers();
+            }
+        }, 10000);
+    }
+
+    // Gérer les messages WebSocket
+    function handleWebSocketMessage(data) {
+        switch (data.type) {
+            case 'message':
+                addMessage(data.message);
+                break;
+            case 'typing':
+                showTypingIndicator(data.user_name);
+                break;
+            case 'stop_typing':
+                hideTypingIndicator();
+                break;
+            case 'member_joined':
+                showSystemMessage(`${data.user_name} a rejoint la conversation`);
+                addMemberToList(data.member);
+                updateMembersCount();
+                break;
+            case 'member_left':
+                showSystemMessage(`${data.user_name} a quitté la conversation`);
+                removeMemberFromList(data.user_id);
+                updateMembersCount();
+                break;
+            case 'member_online':
+                updateMemberOnlineStatus(data.user_id, true);
+                break;
+            case 'member_offline':
+                updateMemberOnlineStatus(data.user_id, false);
+                break;
+        }
+    }
+
+    // Charger les membres
+    async function loadMembers() {
+        try {
+            const response = await fetch(`/api/rooms/${roomId}/members`);
+            if (!response.ok) throw new Error('Erreur réseau');
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                renderMembers(result.members);
+                updateMembersCount();
+            }
+        } catch (error) {
+            console.error('Erreur chargement membres:', error);
+            showToast('Impossible de charger les membres', 'error');
+        }
+    }
+
+    // Rendre les membres
+    function renderMembers(members) {
+        const container = document.getElementById('membersList');
+        
+        if (!members || members.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-users text-2xl mb-2"></i>
+                    <p class="text-sm">Aucun membre</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Compter les membres en ligne
+        onlineMembers = members.filter(m => m.is_online).length;
+        updateOnlineCount();
+        
+        container.innerHTML = members.map(member => `
+            <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition" data-user-id="${member.user_id}">
+                <div class="relative">
+                    <div class="w-10 h-10 rounded-full ${getUserColor(member.user_id)} flex items-center justify-center text-white font-semibold">
+                        ${getInitials(member.user_name)}
+                    </div>
+                    <div class="absolute -bottom-1 -right-1 w-3 h-3 ${member.is_online ? 'bg-green-500' : 'bg-gray-300'} border-2 border-white rounded-full"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-medium text-gray-900 text-sm truncate">
+                            ${escapeHtml(member.user_name)}
+                            ${member.user_id == userId ? '<span class="text-blue-500 ml-1">(Vous)</span>' : ''}
+                        </span>
+                        ${member.role === 'owner' ? '<span class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded">👑</span>' : ''}
+                        ${member.role === 'admin' ? '<span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">⭐</span>' : ''}
+                    </div>
+                    <span class="text-xs ${member.is_online ? 'text-green-600' : 'text-gray-400'}">
+                        ${member.is_online ? 'En ligne' : 'Hors ligne'}
+                        ${member.last_seen ? ` · ${formatRelativeTime(member.last_seen)}` : ''}
+                    </span>
+                </div>
+                ${member.user_id != userId ? `
+                    <button onclick="startPrivateChat(${member.user_id})"
+                            class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition">
+                        <i class="fas fa-comment"></i>
+                    </button>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    // Ajouter un membre à la liste
+    function addMemberToList(member) {
+        const membersList = document.getElementById('membersList');
+        const existingMember = membersList.querySelector(`[data-user-id="${member.user_id}"]`);
+        
+        if (existingMember) {
+            existingMember.remove();
+        }
+        
+        const memberHtml = `
+            <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition" data-user-id="${member.user_id}">
+                <div class="relative">
+                    <div class="w-10 h-10 rounded-full ${getUserColor(member.user_id)} flex items-center justify-center text-white font-semibold">
+                        ${getInitials(member.user_name)}
+                    </div>
+                    <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-medium text-gray-900 text-sm truncate">
+                            ${escapeHtml(member.user_name)}
+                        </span>
+                    </div>
+                    <span class="text-xs text-green-600">En ligne</span>
+                </div>
+            </div>
+        `;
+        
+        membersList.insertAdjacentHTML('afterbegin', memberHtml);
+        onlineMembers++;
+        updateOnlineCount();
+    }
+
+    // Mettre à jour le statut en ligne d'un membre
+    function updateMemberOnlineStatus(userId, isOnline) {
+        const memberItem = document.querySelector(`[data-user-id="${userId}"]`);
+        if (memberItem) {
+            const statusDot = memberItem.querySelector('.absolute .rounded-full');
+            const statusText = memberItem.querySelector('.text-xs');
+            
+            if (statusDot) {
+                statusDot.classList.toggle('bg-green-500', isOnline);
+                statusDot.classList.toggle('bg-gray-300', !isOnline);
+            }
+            
+            if (statusText) {
+                const text = isOnline ? 'En ligne' : 'Hors ligne';
+                const color = isOnline ? 'text-green-600' : 'text-gray-400';
+                statusText.className = `text-xs ${color}`;
+                statusText.textContent = text;
+            }
+            
+            if (isOnline) {
+                onlineMembers++;
+            } else {
+                onlineMembers--;
+            }
+            updateOnlineCount();
+        }
+    }
+
+    // Supprimer un membre de la liste
+    function removeMemberFromList(userId) {
+        const memberItem = document.querySelector(`[data-user-id="${userId}"]`);
+        if (memberItem) {
+            const isOnline = memberItem.querySelector('.bg-green-500');
+            if (isOnline) {
+                onlineMembers--;
+                updateOnlineCount();
+            }
+            memberItem.remove();
+        }
+    }
+
+    // Mettre à jour les compteurs
+    function updateMembersCount() {
+        const membersList = document.getElementById('membersList');
+        const memberItems = membersList.querySelectorAll('[data-user-id]');
+        const totalMembers = memberItems.length;
+        
+        document.getElementById('membersCount').textContent = totalMembers;
+        document.getElementById('totalMembers').textContent = totalMembers;
+    }
+
+    function updateOnlineCount() {
+        document.getElementById('onlineCount').textContent = onlineMembers;
+    }
+
+    // Charger les messages
+    async function loadMessages(beforeId = null) {
+        if (isLoadingMessages) return;
+        isLoadingMessages = true;
+        
+        try {
+            let url = `/api/rooms/${roomId}/messages?limit=30`;
+            if (beforeId) {
+                url += `&before=${beforeId}`;
+            }
+            
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            if (result.success) {
+                if (beforeId) {
+                    prependMessages(result.messages);
+                } else {
+                    renderMessages(result.messages);
+                }
+                
+                hasMoreMessages = result.messages.length === 30;
+                if (result.messages.length > 0) {
+                    lastMessageId = result.messages[0].id;
+                }
+                
+                if (!beforeId) {
+                    setTimeout(scrollToBottom, 100);
+                }
+            }
+        } catch (error) {
+            console.error('Erreur chargement messages:', error);
+        } finally {
+            isLoadingMessages = false;
+        }
+    }
+
+    // Vérifier les nouveaux messages
+    async function checkNewMessages() {
+        try {
+            let url = `/api/rooms/${roomId}/messages?limit=20`;
+            if (lastMessageId) {
+                url += `&after=${lastMessageId}`;
+            }
+            
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            if (result.success && result.messages.length > 0) {
+                appendMessages(result.messages);
+                lastMessageId = result.messages[result.messages.length - 1].id;
+                
+                const container = document.getElementById('messagesContainer');
+                const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 200;
+                
+                if (isNearBottom) {
+                    scrollToBottom();
+                } else {
+                    showNewMessagesNotification(result.messages.length);
+                }
+            }
+        } catch (error) {
+            console.error('Erreur vérification messages:', error);
+        }
+    }
+
+    // Rendre les messages
+    function renderMessages(messages) {
+        const container = document.getElementById('messagesContainer');
+        
+        if (!messages || messages.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-comments text-blue-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Bienvenue dans ${room.name}!</h3>
+                    <p class="text-gray-500 text-sm">Commencez la conversation en envoyant un message</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let messagesHtml = '';
+        let lastDate = null;
+        
+        messages.forEach(message => {
+            const messageDate = new Date(message.created_at).toLocaleDateString('fr-FR');
+            
+            if (messageDate !== lastDate) {
+                messagesHtml += `
+                    <div class="flex justify-center my-4">
+                        <div class="message-system px-4 py-2 text-sm">
+                            <i class="far fa-calendar-alt mr-2"></i> ${messageDate}
+                        </div>
+                    </div>
+                `;
+                lastDate = messageDate;
+            }
+            
+            messagesHtml += renderMessage(message);
+        });
+        
+        container.innerHTML = messagesHtml;
+        updateMessagesCount();
+    }
+
+    // Ajouter des messages au début
+    function prependMessages(messages) {
+        if (messages.length === 0) return;
+        
+        const container = document.getElementById('messagesContainer');
+        const firstChild = container.firstElementChild;
+        
+        let messagesHtml = '';
+        messages.forEach(message => {
+            messagesHtml += renderMessage(message);
+        });
+        
+        container.insertAdjacentHTML('afterbegin', messagesHtml);
+        
+        if (firstChild) {
+            const newFirstChild = container.firstElementChild;
+            const scrollHeightBefore = container.scrollHeight;
+            
+            container.scrollTop = container.scrollHeight - scrollHeightBefore + firstChild.offsetTop;
+        }
+    }
+
+    // Ajouter des messages à la fin
+    function appendMessages(messages) {
+        if (messages.length === 0) return;
+        
+        const container = document.getElementById('messagesContainer');
+        
+        messages.forEach(message => {
+            const messageHtml = renderMessage(message);
+            container.insertAdjacentHTML('beforeend', messageHtml);
+        });
+        
+        updateMessagesCount();
+    }
+
+    // Ajouter un seul message
+    function addMessage(message) {
+        const container = document.getElementById('messagesContainer');
+        
+        if (container.querySelector('.text-center')) {
+            renderMessages([message]);
+        } else {
+            const messageHtml = renderMessage(message);
+            container.insertAdjacentHTML('beforeend', messageHtml);
+        }
+        
+        updateMessagesCount();
+        scrollToBottom();
+    }
+
+    // Rendre un message individuel
+    function renderMessage(message) {
+        const isOwnMessage = message.user_id == userId;
+        const messageTime = new Date(message.created_at).toLocaleTimeString('fr-FR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        if (message.message_type === 'system') {
+            return `
+                <div class="flex justify-center">
+                    <div class="message-system px-4 py-2 text-sm">
+                        <i class="fas fa-info-circle mr-2"></i>${escapeHtml(message.message)}
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="message-container flex ${isOwnMessage ? 'justify-end' : 'justify-start'}" data-message-id="${message.id}">
+                <div class="${isOwnMessage ? 'message-sent text-white' : 'message-received text-gray-900'} max-w-md px-4 py-2 shadow-sm">
+                    ${!isOwnMessage ? `
+                        <div class="text-xs font-semibold mb-1 ${isOwnMessage ? 'text-blue-100' : 'text-gray-600'}">
+                            ${escapeHtml(message.user_name)}
+                        </div>
+                    ` : ''}
+                    <div class="text-sm">${escapeHtml(message.message)}</div>
+                    <div class="text-xs mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'}">${messageTime}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Mettre à jour le compteur de messages
+    function updateMessagesCount() {
+        const container = document.getElementById('messagesContainer');
+        const messages = container.querySelectorAll('.message-container');
+        document.getElementById('messagesCount').textContent = messages.length;
+    }
+
+    // Gérer le scroll
+    function handleMessagesScroll() {
+        const container = document.getElementById('messagesContainer');
+        const scrollBtn = document.getElementById('scrollBtn');
+        
+        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 50;
+        scrollBtn.classList.toggle('hidden', isAtBottom);
+        
+        if (container.scrollTop < 100 && hasMoreMessages && !isLoadingMessages) {
+            loadMessages(lastMessageId);
+        }
+    }
+
+    // Scroll vers le bas
+    function scrollToBottom() {
+        const container = document.getElementById('messagesContainer');
+        container.scrollTop = container.scrollHeight;
+        document.getElementById('scrollBtn').classList.add('hidden');
+    }
+
+    // Auto-resize du textarea
+    function autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 160) + 'px';
+    }
+
+    // Gérer les touches du clavier
+    function handleKeyDown(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+        }
+    }
+
+    // Gérer la frappe
+    function handleTyping() {
+        if (!isTyping) {
+            isTyping = true;
+            sendTypingEvent();
+        }
+        
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            isTyping = false;
+            sendStopTypingEvent();
+        }, 1500);
+    }
+
+    // Envoyer l'événement "en train de taper"
+    function sendTypingEvent() {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'typing',
+                user_id: userId,
+                user_name: userName
+            }));
+        }
+    }
+
+    // Envoyer l'événement "arrêté de taper"
+    function sendStopTypingEvent() {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'stop_typing',
+                user_id: userId
+            }));
+        }
+    }
+
+    // Afficher l'indicateur de frappe
+    function showTypingIndicator(userName) {
+        const indicator = document.getElementById('typingIndicator');
+        const text = document.getElementById('typingText');
+        
+        text.textContent = `${userName} est en train d'écrire...`;
+        indicator.classList.remove('hidden');
+    }
+
+    // Masquer l'indicateur de frappe
+    function hideTypingIndicator() {
+        document.getElementById('typingIndicator').classList.add('hidden');
+    }
+
+    // Envoyer un message
+    async function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        try {
+            const response = await fetch(`/api/rooms/${roomId}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                input.value = '';
+                input.style.height = 'auto';
+                document.getElementById('sendButton').disabled = true;
+                
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({
+                        type: 'message',
+                        message: result.message
+                    }));
+                }
+                
+                hideTypingIndicator();
+            } else {
+                showToast(result.message, 'error');
+            }
+        } catch (error) {
+            console.error('Erreur envoi message:', error);
+            showToast('Erreur de connexion', 'error');
+        }
+    }
+
+    // Afficher un message système
+    function showSystemMessage(text) {
+        const container = document.getElementById('messagesContainer');
+        const messageHtml = `
+            <div class="flex justify-center">
+                <div class="message-system px-4 py-2 text-sm">
+                    <i class="fas fa-info-circle mr-2"></i>${escapeHtml(text)}
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', messageHtml);
+        updateMessagesCount();
+    }
+
+    // Charger les statistiques
+    async function loadRoomStats() {
+        try {
+            const response = await fetch(`/api/rooms/${roomId}/stats`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const stats = result.stats;
+                document.getElementById('membersCount').textContent = stats.members.total_members || 0;
+                document.getElementById('messagesCount').textContent = stats.messages.total_messages || 0;
+            }
+        } catch (error) {
+            console.error('Erreur chargement stats:', error);
+        }
+    }
+
+    // Quitter la room
+    async function leaveRoom(roomId) {
+        if (!confirm('Voulez-vous vraiment quitter cette room ?')) return;
+        
+        try {
+            const response = await fetch(`/api/rooms/${roomId}/leave`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('Vous avez quitté la room', 'success');
+                setTimeout(() => {
+                    window.location.href = '/rooms';
+                }, 1500);
+            } else {
+                showToast(result.message, 'error');
+            }
+        } catch (error) {
+            console.error('Erreur quitter room:', error);
+            showToast('Erreur de connexion', 'error');
+        }
+    }
+
+    // Gérer la room
+    function manageRoom(roomId) {
+        window.location.href = `/room/${roomId}/manage`;
+    }
+
+    // Démarrer un chat privé
+    async function startPrivateChat(userId) {
+        try {
+            const response = await fetch(`/api/messages/private/${userId}`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                window.location.href = `/messages/${result.conversation_id}`;
+            } else {
+                showToast('Impossible de démarrer le chat privé', 'error');
+            }
+        } catch (error) {
+            console.error('Erreur chat privé:', error);
+            showToast('Erreur de connexion', 'error');
+        }
+    }
+
+    // Fonctions utilitaires
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function getInitials(name) {
+        if (!name) return '?';
+        return name.split(' ')
+            .map(word => word.charAt(0))
+            .join('')
+            .toUpperCase()
+            .substring(0, 2);
+    }
+
+    function getUserColor(userId) {
+        const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 'bg-orange-500', 'bg-teal-500'];
+        return colors[userId % colors.length];
+    }
+
+    function formatRelativeTime(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return "à l'instant";
+        if (diffMins < 60) return `il y a ${diffMins} min`;
+        if (diffHours < 24) return `il y a ${diffHours} h`;
+        if (diffDays < 7) return `il y a ${diffDays} j`;
+        return date.toLocaleDateString('fr-FR');
+    }
+
+    // Afficher une notification de nouveaux messages
+    function showNewMessagesNotification(count) {
+        const notification = document.createElement('div');
+        notification.className = 'fixed bottom-24 right-6 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-40 animate-bounce';
+        notification.innerHTML = `
+            <div class="flex items-center gap-2">
+                <i class="fas fa-comment"></i>
+                <span>${count} nouveau(x) message(s)</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+
+    // Afficher un toast
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        const bgColor = type === 'error' ? 'bg-red-500' : 
+                       type === 'success' ? 'bg-green-500' : 
+                       type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
+        
+        toast.className = `fixed top-6 right-6 px-6 py-3 rounded-lg text-white shadow-lg ${bgColor} z-50 animate-slide-in`;
+        toast.innerHTML = `
+            <div class="flex items-center gap-3">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Toggle emoji picker (fonctionnalité à implémenter)
+    function toggleEmojiPicker() {
+        showToast('Fonctionnalité emoji à implémenter', 'info');
+    }
+
+    // Attacher un fichier (fonctionnalité à implémenter)
+    function attachFile() {
+        showToast('Fonctionnalité fichiers à implémenter', 'info');
+    }
+</script>

@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> | iVote</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <style>
+        .message-container {
+            height: calc(100vh - 200px);
+        }
+        .conversations-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .messages-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message-bubble {
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .message-mine {
+            background-color: #6366f1;
+            color: white;
+            border-radius: 18px 18px 0 18px;
+        }
+        .message-theirs {
+            background-color: #f1f5f9;
+            color: #334155;
+            border-radius: 18px 18px 18px 0;
+        }
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+    
+    
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-8">
+        <!-- HEADER -->
+        <header class="mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Messages</h1>
+                    <p class="text-gray-600">Discutez avec votre réseau</p>
+                </div>
+                
+                <!-- Bouton Nouveau Message -->
+                <button 
+                    id="newMessageBtn"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center"
+                >
+                    <span class="material-icons mr-2">add</span>
+                    Nouveau Message
+                </button>
+            </div>
+        </header>
+
+        <!-- CONTENU PRINCIPAL -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 message-container">
+            <!-- LISTE DES CONVERSATIONS -->
+            <div class="lg:col-span-1 bg-white rounded-xl shadow">
+                <div class="p-4 border-b">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-gray-800">Conversations</h2>
+                        <span class="text-gray-400 text-sm">
+                            <%= conversations.length %> conversation<%= conversations.length > 1 ? 's' : '' %>
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- LISTE -->
+                <div class="conversations-list divide-y divide-gray-100">
+                    <% if (conversations.length === 0) { %>
+                        <div class="p-8 text-center">
+                            <span class="material-icons text-gray-400 text-5xl mb-4">chat</span>
+                            <p class="text-gray-600 mb-2">Aucune conversation</p>
+                            <p class="text-gray-500 text-sm">Envoyez votre premier message pour commencer</p>
+                        </div>
+                    <% } else { %>
+                        <% conversations.forEach(conv => { %>
+                            <div 
+                                class="conversation-item p-4 hover:bg-gray-50 cursor-pointer transition <%= conv.unread_count > 0 ? 'bg-blue-50' : '' %>"
+                                data-user-id="<%= conv.other_user_id %>"
+                                data-user-name="<%= conv.prenom %> <%= conv.nom %>"
+                            >
+                                <div class="flex items-center">
+                                    <!-- Avatar -->
+                                    <div class="relative">
+                                        <div class="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                                            <span class="material-icons text-indigo-600">person</span>
+                                        </div>
+                                        <div class="online-dot absolute bottom-0 right-0"></div>
+                                    </div>
+                                    
+                                    <!-- Infos -->
+                                    <div class="ml-3 flex-1 min-w-0">
+                                        <div class="flex justify-between items-start">
+                                            <h3 class="font-medium text-gray-800 truncate">
+                                                <%= conv.prenom %> <%= conv.nom %>
+                                            </h3>
+                                            <span class="text-gray-400 text-xs whitespace-nowrap">
+                                                <%= new Date(conv.last_message_time).toLocaleTimeString('fr-FR', { 
+                                                    hour: '2-digit', 
+                                                    minute: '2-digit' 
+                                                }) %>
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Dernier message -->
+                                        <p class="text-gray-600 text-sm truncate mt-1">
+                                            <% if (conv.last_message) { %>
+                                                <%= conv.last_message.length > 50 ? 
+                                                    conv.last_message.substring(0, 50) + '...' : 
+                                                    conv.last_message %>
+                                            <% } else { %>
+                                                Aucun message
+                                            <% } %>
+                                        </p>
+                                        
+                                        <!-- Badge non lu -->
+                                        <% if (conv.unread_count > 0) { %>
+                                            <div class="inline-flex items-center mt-1">
+                                                <span class="h-2 w-2 bg-indigo-600 rounded-full mr-1"></span>
+                                                <span class="text-xs text-indigo-600 font-medium">
+                                                    <%= conv.unread_count %> nouveau<%= conv.unread_count > 1 ? 'x' : '' %>
+                                                </span>
+                                            </div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    <% } %>
+                </div>
+            </div>
+            
+            <!-- ZONE DE CHAT -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow">
+                <!-- État vide -->
+                <div id="chatEmptyState" class="h-full flex flex-col items-center justify-center p-8">
+                    <div class="text-center">
+                        <span class="material-icons text-gray-400 text-6xl mb-4">forum</span>
+                        <h3 class="text-xl font-medium text-gray-600 mb-2">Aucune conversation sélectionnée</h3>
+                        <p class="text-gray-500 mb-6">Sélectionnez une conversation pour démarrer la discussion</p>
+                        
+                        <!-- Suggestions -->
+                        <div class="mt-6">
+                            <p class="text-gray-600 mb-3">Suggestions :</p>
+                            <button 
+                                id="startNewChatBtn"
+                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center mx-auto"
+                            >
+                                <span class="material-icons mr-2">add_comment</span>
+                                Démarrer une nouvelle discussion
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Conteneur chat -->
+                <div id="chatContainer" class="hidden h-full flex flex-col">
+                    <!-- En-tête -->
+                    <div class="p-4 border-b flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="relative">
+                                <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                    <span class="material-icons text-indigo-600">person</span>
+                                </div>
+                                <div class="online-dot absolute bottom-0 right-0"></div>
+                            </div>
+                            <div class="ml-3">
+                                <h3 id="chatUserName" class="font-medium text-gray-800"></h3>
+                                <p id="chatUserStatus" class="text-gray-500 text-sm">En ligne</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button 
+                                id="chatInfoBtn"
+                                class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition"
+                                title="Informations"
+                            >
+                                <span class="material-icons">info</span>
+                            </button>
+                            <button 
+                                id="chatDeleteBtn"
+                                class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition"
+                                title="Supprimer la conversation"
+                            >
+                                <span class="material-icons">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Messages -->
+                    <div id="messagesContainer" class="messages-scroll flex-1 p-4 space-y-4">
+                        <!-- Messages chargés dynamiquement -->
+                    </div>
+                    
+                    <!-- Zone d'envoi -->
+                    <div class="p-4 border-t">
+                        <form id="messageForm" class="flex space-x-3">
+                            <input 
+                                type="text" 
+                                id="messageInput" 
+                                placeholder="Tapez votre message..." 
+                                class="flex-1 px-4 py-3 bg-gray-50 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                                autocomplete="off"
+                            >
+                            <button 
+                                type="submit"
+                                class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span class="material-icons mr-2">send</span>
+                                Envoyer
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL NOUVEAU MESSAGE -->
+    <div id="newMessageModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-4">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">Nouveau message</h3>
+                    <button 
+                        id="closeModalBtn"
+                        class="text-gray-400 hover:text-gray-600 transition"
+                    >
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                
+                <!-- Recherche utilisateur -->
+                <div class="mb-6">
+                    <div class="relative">
+                        <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
+                        <input 
+                            type="text" 
+                            id="userSearchInput"
+                            placeholder="Rechercher un contact..." 
+                            class="w-full pl-10 pr-4 py-2 bg-gray-50 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                            autocomplete="off"
+                        >
+                    </div>
+                </div>
+                
+                <!-- Résultats -->
+                <div id="searchResults" class="max-h-64 overflow-y-auto mb-6">
+                    <!-- Résultats chargés dynamiquement -->
+                </div>
+                
+                <!-- Message -->
+                <div class="mb-6">
+                    <textarea 
+                        id="newMessageContent"
+                        placeholder="Votre message..."
+                        rows="4"
+                        class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition resize-none"
+                    ></textarea>
+                </div>
+                
+                <!-- Actions -->
+                <div class="flex justify-end space-x-3">
+                    <button 
+                        id="cancelModalBtn"
+                        class="px-4 py-2 text-gray-600 hover:text-gray-800 transition"
+                    >
+                        Annuler
+                    </button>
+                    <button 
+                        id="sendNewMessageBtn"
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled
+                    >
+                        Envoyer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variables globales
+            let currentChatUserId = null;
+            let currentChatUserName = null;
+            let messagePolling = null;
+            const currentUserId = <%= user.id %>;
+            
+            // Éléments DOM
+            const chatEmptyState = document.getElementById('chatEmptyState');
+            const chatContainer = document.getElementById('chatContainer');
+            const messagesContainer = document.getElementById('messagesContainer');
+            const messageForm = document.getElementById('messageForm');
+            const messageInput = document.getElementById('messageInput');
+            const chatUserName = document.getElementById('chatUserName');
+            const conversationItems = document.querySelectorAll('.conversation-item');
+            const newMessageBtn = document.getElementById('newMessageBtn');
+            const newMessageModal = document.getElementById('newMessageModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const cancelModalBtn = document.getElementById('cancelModalBtn');
+            const userSearchInput = document.getElementById('userSearchInput');
+            const searchResults = document.getElementById('searchResults');
+            const newMessageContent = document.getElementById('newMessageContent');
+            const sendNewMessageBtn = document.getElementById('sendNewMessageBtn');
+            const chatDeleteBtn = document.getElementById('chatDeleteBtn');
+            const startNewChatBtn = document.getElementById('startNewChatBtn');
+            
+            // ========== GESTION DES CONVERSATIONS ==========
+            
+            // Ouvrir une conversation
+            conversationItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const userId = this.getAttribute('data-user-id');
+                    const userName = this.getAttribute('data-user-name');
+                    openChat(userId, userName);
+                });
+            });
+            
+            // Ouvrir le chat
+            function openChat(userId, userName) {
+                currentChatUserId = userId;
+                currentChatUserName = userName;
+                
+                // Mettre à jour l'UI
+                chatEmptyState.classList.add('hidden');
+                chatContainer.classList.remove('hidden');
+                chatUserName.textContent = userName;
+                
+                // Mettre en surbrillance la conversation sélectionnée
+                conversationItems.forEach(item => {
+                    item.classList.remove('bg-indigo-50', 'border-l-4', 'border-indigo-500');
+                    if (item.getAttribute('data-user-id') === userId) {
+                        item.classList.add('bg-indigo-50', 'border-l-4', 'border-indigo-500');
+                    }
+                });
+                
+                // Charger les messages
+                loadMessages(userId);
+                
+                // Marquer comme lus
+                markConversationAsRead(userId);
+                
+                // Démarrer le polling
+                startMessagePolling(userId);
+            }
+            
+            // Charger les messages
+            async function loadMessages(userId) {
+                try {
+                    const response = await fetch(`/api/messages/${userId}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        displayMessages(data.messages, data.other_user);
+                    } else {
+                        console.error('Erreur chargement messages:', data.message);
+                    }
+                } catch (error) {
+                    console.error('Erreur réseau:', error);
+                }
+            }
+            
+            // Afficher les messages
+            function displayMessages(messages, otherUser) {
+                messagesContainer.innerHTML = '';
+                
+                if (messages.length === 0) {
+                    messagesContainer.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <span class="material-icons text-4xl mb-2">chat_bubble_outline</span>
+                            <p>Aucun message échangé</p>
+                            <p class="text-sm mt-1">Envoyez votre premier message !</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let currentDate = null;
+                
+                messages.forEach(message => {
+                    const messageDate = new Date(message.created_at);
+                    const dateStr = messageDate.toLocaleDateString('fr-FR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                    
+                    // Afficher la date si elle change
+                    if (currentDate !== dateStr) {
+                        currentDate = dateStr;
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'text-center my-4';
+                        dateDiv.innerHTML = `
+                            <span class="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">
+                                ${dateStr}
+                            </span>
+                        `;
+                        messagesContainer.appendChild(dateDiv);
+                    }
+                    
+                    const isMine = message.sender_id == currentUserId;
+                    const timeStr = messageDate.toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
+                    
+                    messageDiv.innerHTML = `
+                        <div class="message-bubble ${isMine ? 'message-mine' : 'message-theirs'} px-4 py-2 max-w-xs lg:max-w-md">
+                            <div class="mb-1">${escapeHtml(message.message)}</div>
+                            <div class="flex justify-end items-center text-xs ${isMine ? 'text-indigo-200' : 'text-gray-500'}">
+                                <span>${timeStr}</span>
+                                ${isMine ? 
+                                    `<span class="material-icons ml-1 text-xs">${message.is_read ? 'done_all' : 'done'}</span>` 
+                                    : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    messagesContainer.appendChild(messageDiv);
+                });
+                
+                // Scroller vers le bas
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            // Envoyer un message
+            async function sendMessage(message) {
+                if (!currentChatUserId || !message.trim()) return false;
+                
+                try {
+                    const response = await fetch('/api/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            receiver_id: currentChatUserId,
+                            message: message.trim()
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        messageInput.value = '';
+                        await loadMessages(currentChatUserId);
+                        return true;
+                    } else {
+                        alert('Erreur: ' + data.message);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Erreur envoi:', error);
+                    alert('Erreur de connexion');
+                    return false;
+                }
+            }
+            
+            // Form submission
+            messageForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const message = messageInput.value.trim();
+                
+                if (message && currentChatUserId) {
+                    await sendMessage(message);
+                }
+            });
+            
+            // ========== POLLING ==========
+            
+            function startMessagePolling(userId) {
+                // Arrêter le polling précédent
+                if (messagePolling) {
+                    clearInterval(messagePolling);
+                }
+                
+                // Polling toutes les 3 secondes
+                messagePolling = setInterval(async () => {
+                    if (!currentChatUserId || currentChatUserId !== userId) return;
+                    
+                    try {
+                        const response = await fetch(`/api/messages/${userId}/check`);
+                        const data = await response.json();
+                        
+                        if (data.success && data.has_new) {
+                            await loadMessages(userId);
+                            markConversationAsRead(userId);
+                        }
+                    } catch (error) {
+                        console.error('Erreur polling:', error);
+                    }
+                }, 3000);
+            }
+            
+            // Marquer une conversation comme lue
+            async function markConversationAsRead(userId) {
+                try {
+                    await fetch(`/api/messages/${userId}/read`, {
+                        method: 'POST'
+                    });
+                    
+                    // Mettre à jour le badge
+                    const conversationItem = document.querySelector(`[data-user-id="${userId}"]`);
+                    if (conversationItem) {
+                        conversationItem.classList.remove('bg-blue-50');
+                        const badge = conversationItem.querySelector('.text-indigo-600');
+                        if (badge) {
+                            badge.remove();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur marquer comme lu:', error);
+                }
+            }
+            
+            // ========== NOUVELLE CONVERSATION ==========
+            
+            // Ouvrir le modal
+            function openNewMessageModal() {
+                newMessageModal.classList.remove('hidden');
+                userSearchInput.focus();
+            }
+            
+            // Fermer le modal
+            function closeNewMessageModal() {
+                newMessageModal.classList.add('hidden');
+                userSearchInput.value = '';
+                newMessageContent.value = '';
+                searchResults.innerHTML = '';
+                sendNewMessageBtn.disabled = true;
+            }
+            
+            // Événements modal
+            newMessageBtn.addEventListener('click', openNewMessageModal);
+            startNewChatBtn.addEventListener('click', openNewMessageModal);
+            closeModalBtn.addEventListener('click', closeNewMessageModal);
+            cancelModalBtn.addEventListener('click', closeNewMessageModal);
+            
+            // Fermer en cliquant à l'extérieur
+            newMessageModal.addEventListener('click', function(e) {
+                if (e.target === newMessageModal) {
+                    closeNewMessageModal();
+                }
+            });
+            
+            // Recherche d'utilisateurs
+            let searchTimeout;
+            userSearchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(searchUsers, 300);
+            });
+            
+            async function searchUsers() {
+                const query = userSearchInput.value.trim();
+                
+                if (query.length < 2) {
+                    searchResults.innerHTML = `
+                        <div class="text-center text-gray-400 py-4">
+                            Tapez au moins 2 caractères
+                        </div>
+                    `;
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.users.length > 0) {
+                        searchResults.innerHTML = '';
+                        
+                        data.users.forEach(user => {
+                            const userDiv = document.createElement('div');
+                            userDiv.className = 'p-3 hover:bg-gray-50 cursor-pointer rounded-lg transition user-search-result';
+                            userDiv.setAttribute('data-user-id', user.id);
+                            userDiv.setAttribute('data-user-name', `${user.prenom} ${user.nom}`);
+                            
+                            userDiv.innerHTML = `
+                                <div class="flex items-center">
+                                    <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                        <span class="material-icons text-indigo-600">person</span>
+                                    </div>
+                                    <div class="ml-3 flex-1">
+                                        <h4 class="font-medium text-gray-800">${escapeHtml(user.prenom)} ${escapeHtml(user.nom)}</h4>
+                                        <p class="text-gray-500 text-sm">${escapeHtml(user.email)}</p>
+                                    </div>
+                                    ${user.is_following ? 
+                                        '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Déjà en contact</span>' : 
+                                        ''}
+                                </div>
+                            `;
+                            
+                            userDiv.addEventListener('click', function() {
+                                // Sélectionner cet utilisateur
+                                document.querySelectorAll('.user-search-result').forEach(el => {
+                                    el.classList.remove('bg-indigo-50', 'border', 'border-indigo-200');
+                                });
+                                this.classList.add('bg-indigo-50', 'border', 'border-indigo-200');
+                                
+                                // Activer le bouton envoyer
+                                sendNewMessageBtn.disabled = false;
+                                newMessageContent.focus();
+                                
+                                // Stocker l'ID utilisateur sélectionné
+                                sendNewMessageBtn.dataset.userId = user.id;
+                                sendNewMessageBtn.dataset.userName = `${user.prenom} ${user.nom}`;
+                            });
+                            
+                            searchResults.appendChild(userDiv);
+                        });
+                    } else {
+                        searchResults.innerHTML = `
+                            <div class="text-center text-gray-400 py-4">
+                                Aucun utilisateur trouvé
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Erreur recherche:', error);
+                    searchResults.innerHTML = `
+                        <div class="text-center text-red-400 py-4">
+                            Erreur de recherche
+                        </div>
+                    `;
+                }
+            }
+            
+            // Envoyer un nouveau message
+            sendNewMessageBtn.addEventListener('click', async function() {
+                const userId = this.dataset.userId;
+                const userName = this.dataset.userName;
+                const message = newMessageContent.value.trim();
+                
+                if (!userId || !message) return;
+                
+                try {
+                    const response = await fetch('/api/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            receiver_id: userId,
+                            message: message
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        closeNewMessageModal();
+                        
+                        // Ouvrir directement la conversation
+                        openChat(userId, userName);
+                        
+                        // Rafraîchir la liste des conversations
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    } else {
+                        alert('Erreur: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    alert('Erreur de connexion');
+                }
+            });
+            
+            // Supprimer une conversation
+            chatDeleteBtn.addEventListener('click', function() {
+                if (!currentChatUserId || !confirm('Supprimer toute la conversation ? Cette action est irréversible.')) {
+                    return;
+                }
+                
+                fetch(`/api/conversations/${currentChatUserId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Recharger la page
+                        window.location.reload();
+                    } else {
+                        alert('Erreur lors de la suppression');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur de connexion');
+                });
+            });
+            
+            // ========== UTILITAIRES ==========
+            
+            // Échapper le HTML
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            // Arrêter le polling quand on quitte la page
+            window.addEventListener('beforeunload', () => {
+                if (messagePolling) {
+                    clearInterval(messagePolling);
+                }
+            });
+            
+            // Entrée rapide dans le message
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    messageForm.dispatchEvent(new Event('submit'));
+                }
+            });
+            
+            // Entrée rapide dans le modal
+            newMessageContent.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    sendNewMessageBtn.click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

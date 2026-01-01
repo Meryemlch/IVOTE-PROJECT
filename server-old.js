@@ -177,7 +177,7 @@ app.get('/', (req, res) => {
     if (req.session.userId && req.user) {
         res.redirect('/dashboard');
     } else {
-        res.sendFile(__dirname + '/public/acceuil.html');
+        res.sendFile(__dirname + '/public/connexion.html');
     }
 });
 
@@ -3294,21 +3294,19 @@ app.get('/api/network/user/following', requireAuth, async (req, res) => {
         });
     }
 });
+
+
 // ==================== ROUTES ROOMS COMPLÈTES ====================
 
-// Middleware pour vérifier si l'utilisateur est propriétaire OU admin de la room
+// Middleware pour vérifier si l'utilisateur est propriétaire de la room
 const isRoomOwner = async (req, res, next) => {
     try {
         const roomId = req.params.id;
         const userId = req.user.id;
 
-        // Vérifier si propriétaire OU admin
         const [roomRows] = await pool.execute(
-            `SELECT r.owner_id, rm.role
-             FROM rooms r
-             LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-             WHERE r.id = ? AND r.status != 'archived'`,
-            [userId, roomId]
+            'SELECT owner_id FROM rooms WHERE id = ? AND status != "archived"',
+            [roomId]
         );
 
         if (roomRows.length === 0) {
@@ -3318,23 +3316,16 @@ const isRoomOwner = async (req, res, next) => {
             });
         }
 
-        const isOwner = roomRows[0].owner_id === userId;
-        const isAdmin = roomRows[0].role === 'admin';
-
-        if (!isOwner && !isAdmin) {
+        if (roomRows[0].owner_id !== userId) {
             return res.status(403).json({
                 success: false,
-                message: 'Accès non autorisé. Vous devez être propriétaire ou administrateur de cette room.'
+                message: 'Accès non autorisé. Vous n\'êtes pas propriétaire de cette room.'
             });
         }
 
-        // Ajouter l'info sur le rôle pour les routes suivantes
-        req.isRoomOwner = isOwner;
-        req.isRoomAdmin = isAdmin;
-
         next();
     } catch (error) {
-        console.error('Erreur vérification propriétaire/admin:', error);
+        console.error('Erreur vérification propriétaire:', error);
         res.status(500).json({
             success: false,
             message: 'Erreur serveur'
@@ -3909,23 +3900,23 @@ app.post('/api/rooms/:id/polls', requireAuth, isRoomMember, async (req, res) => 
     }
 });
 
-// Route pour voter dans un sondage de room (CORRIGÉE)
+// Route pour voter dans un sondage de room
 app.post('/api/rooms/polls/:pollId/vote', requireAuth, async (req, res) => {
     try {
         const pollId = req.params.pollId;
         const userId = req.user.id;
-        const { option_ids } = req.body; // Changé de option_id à option_ids
+        const { option_id } = req.body;
 
-        if (!option_ids || !Array.isArray(option_ids) || option_ids.length === 0) {
+        if (!option_id) {
             return res.status(400).json({
                 success: false,
-                message: 'Options requises'
+                message: 'Option requise'
             });
         }
 
-        // Récupérer le sondage
-        const [pollRows] = await pool.execute(`
-            SELECT p.*, r.id as room_id 
+        // Vérifier le sondage
+        const [pollRows] = await pool.execute(
+            `SELECT p.*, r.id as room_id 
              FROM room_polls p
              JOIN rooms r ON p.room_id = r.id
              WHERE p.id = ? AND p.status = 'active' 
@@ -3963,7 +3954,7 @@ app.post('/api/rooms/polls/:pollId/vote', requireAuth, async (req, res) => {
             }
         }
 
-        // Pour un vote unique, vérifier si déjà voté
+        // Vérifier si déjà voté (pour sondage simple)
         if (poll.poll_type === 'single') {
             const [voteRows] = await pool.execute(
                 'SELECT id FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
@@ -3978,105 +3969,59 @@ app.post('/api/rooms/polls/:pollId/vote', requireAuth, async (req, res) => {
             }
         }
 
-        // Pour un vote multiple, vérifier les options sélectionnées
-        const validOptionIds = [];
-        for (const optionId of option_ids) {
-            const [optionRows] = await pool.execute(
-                'SELECT id FROM room_poll_options WHERE id = ? AND poll_id = ?',
-                [optionId, pollId]
-            );
+        // Vérifier l'option
+        const [optionRows] = await pool.execute(
+            'SELECT id FROM room_poll_options WHERE id = ? AND poll_id = ?',
+            [option_id, pollId]
+        );
 
-            if (optionRows.length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Option invalide: ${optionId}`
-                });
-            }
-            validOptionIds.push(optionId);
+        if (optionRows.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Option invalide'
+            });
         }
 
-        // Enregistrer les votes
-        for (const optionId of validOptionIds) {
-            await pool.execute(
-                'INSERT INTO room_poll_votes (poll_id, user_id, option_id) VALUES (?, ?, ?)',
-                [pollId, userId, optionId]
-            );
+        // Enregistrer le vote
+        await pool.execute(
+            'INSERT INTO room_poll_votes (poll_id, user_id, option_id) VALUES (?, ?, ?)',
+            [pollId, userId, option_id]
+        );
 
-            // Mettre à jour le compteur de votes
-            await pool.execute(
-                'UPDATE room_poll_options SET vote_count = COALESCE(vote_count, 0) + 1 WHERE id = ?',
-                [optionId]
-            );
-        }
+        // Mettre à jour le compteur
+        await pool.execute(
+            'UPDATE room_poll_options SET vote_count = COALESCE(vote_count, 0) + 1 WHERE id = ?',
+            [option_id]
+        );
 
         // Créer un message système (si non anonyme)
         if (!poll.is_anonymous) {
             const [optionTextRows] = await pool.execute(
                 'SELECT option_text FROM room_poll_options WHERE id = ?',
-                [validOptionIds[0]]
+                [option_id]
             );
 
             if (optionTextRows.length > 0) {
-                const optionText = validOptionIds.length > 1
-                    ? `${validOptionIds.length} options`
-                    : `"${optionTextRows[0].option_text}"`;
-
                 await pool.execute(
                     `INSERT INTO room_messages 
                     (room_id, user_id, message, message_type, related_poll_id) 
                     VALUES (?, ?, ?, 'poll_vote', ?)`,
                     [poll.room_id, userId,
-                    `${req.user.prenom} ${req.user.nom} a voté pour ${optionText}`,
+                    `${req.user.prenom} ${req.user.nom} a voté pour "${optionTextRows[0].option_text}"`,
                         pollId]
                 );
             }
         }
 
-        // Récupérer les résultats mis à jour pour Socket.IO
-        const [options] = await pool.execute(`
-            SELECT 
-                rpo.*,
-                COUNT(rpv.id) as vote_count
-            FROM room_poll_options rpo
-            LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-            WHERE rpo.poll_id = ?
-            GROUP BY rpo.id
-            ORDER BY rpo.option_order
-        `, [pollId]);
-
-        const total_votes = options.reduce((sum, opt) => sum + (parseInt(opt.vote_count) || 0), 0);
-
-        // Émettre l'événement Socket.IO
-        io.to(`poll_${pollId}`).emit('vote-update', {
-            poll_id: pollId,
-            results: {
-                options: options,
-                total_votes: total_votes
-            }
-        });
-
         console.log(`✅ Vote enregistré pour le sondage ${pollId}`);
 
         res.json({
             success: true,
-            message: 'Vote enregistré avec succès',
-            results: {
-                options: options,
-                total_votes: total_votes
-            }
+            message: 'Vote enregistré avec succès'
         });
 
     } catch (error) {
         console.error('❌ Erreur vote room:', error);
-
-        // Gérer les erreurs de contrainte unique
-        if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vous avez déjà voté pour cette option'
-            });
-        }
-
         res.status(500).json({
             success: false,
             message: 'Erreur serveur'
@@ -4274,6 +4219,7 @@ app.put('/api/rooms/:id', requireAuth, isRoomOwner, async (req, res) => {
     }
 });
 
+
 // Route pour récupérer le code d'accès actuel d'une room
 app.get('/api/rooms/:id/access-code/current', requireAuth, async (req, res) => {
     try {
@@ -4344,7 +4290,6 @@ app.get('/api/rooms/:id/access-code/current', requireAuth, async (req, res) => {
         });
     }
 });
-
 // ==================== ROUTES POUR LES PAGES ====================
 
 // Page de détails de room (pour utilisateurs normaux)
@@ -4545,68 +4490,6 @@ app.get('/room/:id/polls', requireAuth, async (req, res) => {
     }
 });
 
-// Page de vue utilisateur d'une room (détails pour utilisateurs)
-app.get('/room/:id/user-view', requireAuth, async (req, res) => {
-    try {
-        const roomId = req.params.id;
-        const userId = req.user.id;
-
-        // Vérifier que l'utilisateur est membre de la room
-        const [memberRows] = await pool.execute(
-            `SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-             FROM rooms r
-             LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-             WHERE r.id = ? AND r.status != 'archived'`,
-            [userId, roomId]
-        );
-
-        if (memberRows.length === 0) {
-            return res.redirect(`/room/${roomId}/details`);
-        }
-
-        const room = memberRows[0];
-
-        // Récupérer le nombre de membres
-        const [membersCount] = await pool.execute(
-            'SELECT COUNT(*) as count FROM room_members WHERE room_id = ?',
-            [roomId]
-        );
-
-        // Récupérer les informations du propriétaire
-        const [ownerInfo] = await pool.execute(
-            'SELECT id, prenom, nom, email FROM users WHERE id = ?',
-            [room.owner_id]
-        );
-
-        res.render('dashboard/room-user-details', {
-            title: `${room.name} - Détails`,
-            page: 'rooms',
-            user: req.user,
-            room: {
-                id: roomId,
-                name: room.name,
-                description: room.description,
-                room_type: room.room_type,
-                status: room.status,
-                max_members: room.max_members,
-                current_members: membersCount[0].count + 1, // +1 pour le propriétaire
-                created_at: room.created_at,
-                user_role: room.user_role,
-                owner_id: room.owner_id
-            },
-            owner: ownerInfo.length > 0 ? ownerInfo[0] : null
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur page user-view:', error);
-        res.status(500).render('error', {
-            title: 'Erreur',
-            message: 'Erreur serveur',
-            user: req.user
-        });
-    }
-});
-
 // Page des rooms (liste principale)
 app.get('/rooms', requireAuth, async (req, res) => {
     try {
@@ -4714,8 +4597,8 @@ app.get('/api/rooms/:id/members', requireAuth, async (req, res) => {
             const isOwnerInMembers = members.some(m => m.user_id === ownerId);
 
             if (!isOwnerInMembers) {
-                const [ownerData] = await pool.execute(`
-                    SELECT r.owner_id as user_id, 
+                const [ownerData] = await pool.execute(
+                    `SELECT ?, 
                             CONCAT(u.prenom, ' ', u.nom) as user_name,
                             u.email,
                             'admin' as role,
@@ -4723,7 +4606,7 @@ app.get('/api/rooms/:id/members', requireAuth, async (req, res) => {
                      FROM rooms r
                      JOIN users u ON r.owner_id = u.id
                      WHERE r.id = ?`,
-                    [roomId]
+                    [ownerId, roomId]
                 );
                 if (ownerData.length > 0) {
                     members.unshift(ownerData[0]);
@@ -5119,6 +5002,7 @@ app.post('/api/rooms/polls/:pollId/close-simple', requireAuth, async (req, res) 
     }
 });
 
+
 // ==================== ROUTES POUR LE ROOM MANAGER ====================
 
 // 1. Route pour inviter un utilisateur à une room (propriétaire/admin seulement)
@@ -5255,13 +5139,10 @@ app.post('/api/rooms/:roomId/members/:userId/promote', requireAuth, async (req, 
         const targetUserId = req.params.userId;
         const currentUserId = req.user.id;
 
-        // Vérifier que le demandeur est propriétaire ou admin
+        // Vérifier que le demandeur est propriétaire
         const [roomRows] = await pool.execute(
-            `SELECT r.owner_id, rm.role as requester_role
-             FROM rooms r
-             LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-             WHERE r.id = ?`,
-            [currentUserId, roomId]
+            'SELECT owner_id FROM rooms WHERE id = ?',
+            [roomId]
         );
 
         if (roomRows.length === 0) {
@@ -5271,13 +5152,10 @@ app.post('/api/rooms/:roomId/members/:userId/promote', requireAuth, async (req, 
             });
         }
 
-        const isOwner = roomRows[0].owner_id === currentUserId;
-        const isAdmin = roomRows[0].requester_role === 'admin';
-
-        if (!isOwner && !isAdmin) {
+        if (roomRows[0].owner_id !== currentUserId) {
             return res.status(403).json({
                 success: false,
-                message: 'Seuls le propriétaire et les administrateurs peuvent promouvoir des membres'
+                message: 'Seul le propriétaire peut promouvoir des membres'
             });
         }
 
@@ -5347,13 +5225,10 @@ app.post('/api/rooms/:roomId/members/:userId/demote', requireAuth, async (req, r
         const targetUserId = req.params.userId;
         const currentUserId = req.user.id;
 
-        // Vérifier que le demandeur est propriétaire ou admin
+        // Vérifier que le demandeur est propriétaire
         const [roomRows] = await pool.execute(
-            `SELECT r.owner_id, rm.role as requester_role
-             FROM rooms r
-             LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-             WHERE r.id = ?`,
-            [currentUserId, roomId]
+            'SELECT owner_id FROM rooms WHERE id = ?',
+            [roomId]
         );
 
         if (roomRows.length === 0) {
@@ -5363,13 +5238,10 @@ app.post('/api/rooms/:roomId/members/:userId/demote', requireAuth, async (req, r
             });
         }
 
-        const isOwner = roomRows[0].owner_id === currentUserId;
-        const isAdmin = roomRows[0].requester_role === 'admin';
-
-        if (!isOwner && !isAdmin) {
+        if (roomRows[0].owner_id !== currentUserId) {
             return res.status(403).json({
                 success: false,
-                message: 'Seuls le propriétaire et les administrateurs peuvent rétrograder des administrateurs'
+                message: 'Seul le propriétaire peut rétrograder des administrateurs'
             });
         }
 
@@ -5838,21 +5710,18 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
     }
 });
 
-// 9. Route pour récupérer les abonnés (followers) - Utilise les membres des rooms partagées
+// 9. Route pour récupérer les abonnés (followers)
 app.get('/api/network/followers', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Récupérer les utilisateurs qui partagent au moins une room avec l'utilisateur courant
         const [followers] = await pool.execute(`
-            SELECT DISTINCT u.id, u.prenom, u.nom, u.email
-            FROM users u
-            INNER JOIN room_members rm1 ON u.id = rm1.user_id
-            INNER JOIN room_members rm2 ON rm1.room_id = rm2.room_id
-            WHERE rm2.user_id = ? AND u.id != ?
-            ORDER BY u.prenom, u.nom
-            LIMIT 50
-        `, [userId, userId]);
+            SELECT u.id, u.prenom, u.nom, u.email
+            FROM follows f
+            JOIN users u ON f.follower_id = u.id
+            WHERE f.following_id = ?
+            ORDER BY f.created_at DESC
+        `, [userId]);
 
         res.json({
             success: true,
@@ -5868,27 +5737,18 @@ app.get('/api/network/followers', requireAuth, async (req, res) => {
     }
 });
 
-// 10. Route pour récupérer les abonnements (following) - Utilise les membres des rooms partagées
+// 10. Route pour récupérer les abonnements (following)
 app.get('/api/network/following', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Récupérer les utilisateurs des rooms où l'utilisateur est membre
         const [following] = await pool.execute(`
-            SELECT DISTINCT u.id, u.prenom, u.nom, u.email
-            FROM users u
-            INNER JOIN room_members rm ON u.id = rm.user_id
-            INNER JOIN rooms r ON rm.room_id = r.id
-            WHERE r.owner_id = ? AND u.id != ? AND r.status != 'archived'
-            UNION
-            SELECT DISTINCT u.id, u.prenom, u.nom, u.email
-            FROM users u
-            INNER JOIN room_members rm1 ON u.id = rm1.user_id
-            INNER JOIN room_members rm2 ON rm1.room_id = rm2.room_id
-            WHERE rm2.user_id = ? AND u.id != ?
-            ORDER BY prenom, nom
-            LIMIT 50
-        `, [userId, userId, userId, userId]);
+            SELECT u.id, u.prenom, u.nom, u.email
+            FROM follows f
+            JOIN users u ON f.following_id = u.id
+            WHERE f.follower_id = ?
+            ORDER BY f.created_at DESC
+        `, [userId]);
 
         res.json({
             success: true,
@@ -6021,7 +5881,52 @@ app.delete('/api/rooms/:id', requireAuth, isRoomOwner, async (req, res) => {
     }
 });
 
-// ==================== ROUTES ROOM POLLS (CORRIGÉES) ====================
+// ==================== ROOM POLLS ROUTES ====================
+
+// Middleware pour vérifier si l'utilisateur est membre d'une room
+async function isRoomMember(req, res, next) {
+    try {
+        const roomId = req.params.id || req.params.roomId;
+        const userId = req.user.id;
+
+        const [members] = await pool.execute(
+            'SELECT role FROM room_members WHERE room_id = ? AND user_id = ?',
+            [roomId, userId]
+        );
+
+        if (members.length === 0) {
+            return res.status(403).json({ success: false, message: 'Vous n\'êtes pas membre de cette room' });
+        }
+
+        req.roomMember = members[0];
+        next();
+    } catch (error) {
+        console.error('Erreur vérification membre room:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+}
+
+// Middleware pour vérifier si l'utilisateur est admin/owner de la room
+async function isRoomAdmin(req, res, next) {
+    try {
+        const roomId = req.params.id || req.params.roomId;
+        const userId = req.user.id;
+
+        const [members] = await pool.execute(
+            'SELECT role FROM room_members WHERE room_id = ? AND user_id = ? AND role = \'admin\'',
+            [roomId, userId]
+        );
+
+        if (members.length === 0) {
+            return res.status(403).json({ success: false, message: 'Seuls les administrateurs peuvent effectuer cette action' });
+        }
+
+        next();
+    } catch (error) {
+        console.error('Erreur vérification admin room:', error);
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+}
 
 // Page de gestion des sondages d'une room
 app.get('/room/:id/polls', requireAuth, isRoomMember, async (req, res) => {
@@ -6029,12 +5934,13 @@ app.get('/room/:id/polls', requireAuth, isRoomMember, async (req, res) => {
         const roomId = req.params.id;
         const userId = req.user.id;
 
+        // Récupérer les informations de la room
         const [rooms] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as role
+            SELECT r.*, rm.role
             FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ? AND r.status != 'archived'
-        `, [userId, roomId]);
+            JOIN room_members rm ON r.id = rm.room_id
+            WHERE r.id = ? AND rm.user_id = ?
+        `, [roomId, userId]);
 
         if (rooms.length === 0) {
             return res.redirect('/rooms');
@@ -6066,35 +5972,12 @@ app.get('/room/:id/polls', requireAuth, isRoomMember, async (req, res) => {
     }
 });
 
-// Créer un sondage dans une room (admin only) - CORRIGÉ
-app.post('/api/rooms/:roomId/polls', requireAuth, async (req, res) => {
+// Créer un sondage dans une room (admin only)
+app.post('/api/rooms/:roomId/polls', requireAuth, isRoomMember, isRoomAdmin, async (req, res) => {
     try {
         const roomId = req.params.roomId;
         const userId = req.user.id;
         const { title, question, description, poll_type, options, closes_at, is_anonymous } = req.body;
-
-        // Vérifier si l'utilisateur est admin de la room (propriétaire ou admin)
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, roomId]);
-
-        if (roomInfo.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Room non trouvée'
-            });
-        }
-
-        const userRole = roomInfo[0].user_role;
-        if (userRole !== 'owner' && userRole !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Seuls les administrateurs peuvent créer des sondages'
-            });
-        }
 
         // Validation
         if (!title || !question || !options || options.length < 2) {
@@ -6165,92 +6048,13 @@ app.post('/api/rooms/:roomId/polls', requireAuth, async (req, res) => {
     }
 });
 
-// Récupérer tous les sondages d'une room pour la gestion - CORRIGÉ avec filtres
-app.get('/api/rooms/:roomId/polls-management', requireAuth, async (req, res) => {
+// Récupérer tous les sondages d'une room pour la gestion
+app.get('/api/rooms/:roomId/polls-management', requireAuth, isRoomMember, async (req, res) => {
     try {
         const roomId = req.params.roomId;
         const userId = req.user.id;
 
-        // Récupérer les paramètres de filtrage
-        const { status, sort, search, type, anon, startDate, endDate, page = 1, limit = 10 } = req.query;
-
-        // Vérifier si l'utilisateur est membre de la room
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 
-                CASE WHEN r.owner_id = ? THEN 'owner' ELSE NULL END
-            ) as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, userId, roomId]);
-
-        if (roomInfo.length === 0 || !roomInfo[0].user_role) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous n\'êtes pas membre de cette room'
-            });
-        }
-
-        // Construire la requête dynamique avec filtres
-        let whereClause = 'WHERE rp.room_id = ?';
-        const queryParams = [roomId];
-
-        // Filtre par statut
-        if (status && status !== 'all') {
-            whereClause += ' AND rp.status = ?';
-            queryParams.push(status);
-        }
-
-        // Filtre par type de vote
-        if (type && type !== 'all') {
-            whereClause += ' AND rp.poll_type = ?';
-            queryParams.push(type);
-        }
-
-        // Filtre par anonymat
-        if (anon && anon !== 'all') {
-            if (anon === 'anonymous') {
-                whereClause += ' AND rp.is_anonymous = 1';
-            } else if (anon === 'public') {
-                whereClause += ' AND rp.is_anonymous = 0';
-            }
-        }
-
-        // Filtre par recherche
-        if (search && search.trim() !== '') {
-            whereClause += ' AND (rp.title LIKE ? OR rp.question LIKE ?)';
-            queryParams.push(`%${search}%`, `%${search}%`);
-        }
-
-        // Filtre par dates
-        if (startDate) {
-            whereClause += ' AND DATE(rp.created_at) >= ?';
-            queryParams.push(startDate);
-        }
-        if (endDate) {
-            whereClause += ' AND DATE(rp.created_at) <= ?';
-            queryParams.push(endDate);
-        }
-
-        // Construire ORDER BY dynamique
-        let orderClause = '';
-        switch (sort) {
-            case 'oldest':
-                orderClause = 'ORDER BY rp.created_at ASC';
-                break;
-            case 'votes':
-                orderClause = 'ORDER BY voter_count DESC, rp.created_at DESC';
-                break;
-            case 'title':
-                orderClause = 'ORDER BY rp.title ASC';
-                break;
-            case 'newest':
-            default:
-                orderClause = 'ORDER BY CASE WHEN rp.status = \'active\' THEN 0 ELSE 1 END, rp.created_at DESC';
-                break;
-        }
-
-        // Récupérer tous les sondages avec les votes
+        // Récupérer tous les sondages
         const [polls] = await pool.execute(`
             SELECT rp.*, 
                    CONCAT(u.prenom, ' ', u.nom) as creator_name,
@@ -6259,52 +6063,27 @@ app.get('/api/rooms/:roomId/polls-management', requireAuth, async (req, res) => 
             FROM room_polls rp
             JOIN users u ON rp.created_by = u.id
             JOIN rooms r ON rp.room_id = r.id
-            ${whereClause}
-            ${orderClause}
-        `, queryParams);
+            WHERE rp.room_id = ?
+            ORDER BY rp.created_at DESC
+        `, [roomId]);
 
-        // Pour chaque sondage, récupérer les options avec les votes
+        // Pour chaque sondage, récupérer les options et vérifier si l'utilisateur a voté
         for (let poll of polls) {
             const [options] = await pool.execute(`
-                SELECT 
-                    rpo.*,
-                    COUNT(rpv.id) as vote_count
-                FROM room_poll_options rpo
-                LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-                WHERE rpo.poll_id = ?
-                GROUP BY rpo.id
-                ORDER BY rpo.option_order
+                SELECT * FROM room_poll_options WHERE poll_id = ? ORDER BY option_order
             `, [poll.id]);
 
-            // Vérifier si l'utilisateur a déjà voté
-            const [userVotes] = await pool.execute(`
-                SELECT COUNT(*) as has_voted
-                FROM room_poll_votes
-                WHERE poll_id = ? AND user_id = ?
+            const [votes] = await pool.execute(`
+                SELECT * FROM room_poll_votes WHERE poll_id = ? AND user_id = ?
             `, [poll.id, userId]);
 
             poll.options = options;
-            poll.has_voted = userVotes[0].has_voted > 0;
-
-            // Calculer le total des votes
-            poll.total_votes = options.reduce((sum, opt) => sum + (parseInt(opt.vote_count) || 0), 0);
+            poll.has_voted = votes.length > 0;
         }
-
-        // Calculer les statistiques
-        const stats = {
-            total: polls.length,
-            active: polls.filter(p => p.status === 'active').length,
-            totalVotes: polls.reduce((sum, p) => sum + (p.total_votes || 0), 0),
-            yourVotes: polls.filter(p => p.has_voted).length
-        };
 
         res.json({
             success: true,
-            polls: polls,
-            total: polls.length,
-            currentPage: parseInt(page),
-            totalPages: Math.ceil(polls.length / parseInt(limit)),
-            stats: stats
+            polls: polls
         });
 
     } catch (error) {
@@ -6313,27 +6092,11 @@ app.get('/api/rooms/:roomId/polls-management', requireAuth, async (req, res) => 
     }
 });
 
-// Récupérer les détails d'un sondage - CORRIGÉ
-app.get('/api/rooms/:roomId/polls/:pollId', requireAuth, async (req, res) => {
+// Récupérer les détails d'un sondage
+app.get('/api/rooms/:roomId/polls/:pollId', requireAuth, isRoomMember, async (req, res) => {
     try {
         const pollId = req.params.pollId;
         const roomId = req.params.roomId;
-        const userId = req.user.id;
-
-        // Vérifier si l'utilisateur est membre de la room
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, roomId]);
-
-        if (roomInfo.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous n\'êtes pas membre de cette room'
-            });
-        }
 
         const [polls] = await pool.execute(`
             SELECT rp.*, 
@@ -6346,28 +6109,17 @@ app.get('/api/rooms/:roomId/polls/:pollId', requireAuth, async (req, res) => {
         `, [pollId, roomId]);
 
         if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sondage non trouvé'
-            });
+            return res.status(404).json({ success: false, message: 'Sondage non trouvé' });
         }
 
         const poll = polls[0];
 
-        // Récupérer les options avec les votes
+        // Récupérer les options
         const [options] = await pool.execute(`
-            SELECT 
-                rpo.*,
-                COUNT(rpv.id) as vote_count
-            FROM room_poll_options rpo
-            LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-            WHERE rpo.poll_id = ?
-            GROUP BY rpo.id
-            ORDER BY rpo.option_order
+            SELECT * FROM room_poll_options WHERE poll_id = ? ORDER BY option_order
         `, [pollId]);
 
         poll.options = options;
-        poll.total_votes = options.reduce((sum, opt) => sum + (parseInt(opt.vote_count) || 0), 0);
 
         res.json({
             success: true,
@@ -6380,27 +6132,11 @@ app.get('/api/rooms/:roomId/polls/:pollId', requireAuth, async (req, res) => {
     }
 });
 
-// Récupérer les résultats détaillés d'un sondage - CORRIGÉ
-app.get('/api/rooms/:roomId/polls/:pollId/results', requireAuth, async (req, res) => {
+// Récupérer les résultats détaillés d'un sondage
+app.get('/api/rooms/:roomId/polls/:pollId/results', requireAuth, isRoomMember, async (req, res) => {
     try {
         const pollId = req.params.pollId;
         const roomId = req.params.roomId;
-        const userId = req.user.id;
-
-        // Vérifier si l'utilisateur est membre de la room
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, roomId]);
-
-        if (roomInfo.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous n\'êtes pas membre de cette room'
-            });
-        }
 
         const [polls] = await pool.execute(`
             SELECT rp.*, 
@@ -6411,28 +6147,18 @@ app.get('/api/rooms/:roomId/polls/:pollId/results', requireAuth, async (req, res
         `, [pollId, roomId]);
 
         if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sondage non trouvé'
-            });
+            return res.status(404).json({ success: false, message: 'Sondage non trouvé' });
         }
 
         const poll = polls[0];
 
         // Récupérer les options avec les votes
         const [options] = await pool.execute(`
-            SELECT 
-                rpo.*,
-                COUNT(rpv.id) as vote_count
-            FROM room_poll_options rpo
-            LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-            WHERE rpo.poll_id = ?
-            GROUP BY rpo.id
-            ORDER BY rpo.option_order
+            SELECT * FROM room_poll_options WHERE poll_id = ? ORDER BY option_order
         `, [pollId]);
 
         poll.options = options;
-        poll.total_votes = options.reduce((sum, opt) => sum + (parseInt(opt.vote_count) || 0), 0);
+        poll.total_votes = options.reduce((sum, opt) => sum + (opt.vote_count || 0), 0);
 
         // Si non anonyme, récupérer la liste des votants
         if (!poll.is_anonymous) {
@@ -6461,10 +6187,101 @@ app.get('/api/rooms/:roomId/polls/:pollId/results', requireAuth, async (req, res
     }
 });
 
-// Voter pour un sondage (déjà corrigée plus haut)
-// Cette route est déjà corrigée dans la section supérieure
+// Voter pour un sondage
+app.post('/api/rooms/polls/:pollId/vote', requireAuth, async (req, res) => {
+    try {
+        const pollId = req.params.pollId;
+        const userId = req.user.id;
+        const { option_id } = req.body;
 
-// Fermer un sondage (admin only) - CORRIGÉ
+        if (!option_id) {
+            return res.status(400).json({ success: false, message: 'Option requise' });
+        }
+
+        // Récupérer le sondage
+        const [polls] = await pool.execute(`
+            SELECT rp.*, r.id as room_id
+            FROM room_polls rp
+            JOIN rooms r ON rp.room_id = r.id
+            WHERE rp.id = ?
+        `, [pollId]);
+
+        if (polls.length === 0) {
+            return res.status(404).json({ success: false, message: 'Sondage non trouvé' });
+        }
+
+        const poll = polls[0];
+        const roomId = poll.room_id;
+
+        // Vérifier que l'utilisateur est membre de la room
+        const [members] = await pool.execute(
+            'SELECT role FROM room_members WHERE room_id = ? AND user_id = ?',
+            [roomId, userId]
+        );
+
+        if (members.length === 0) {
+            return res.status(403).json({ success: false, message: 'Vous n\'êtes pas membre de cette room' });
+        }
+
+        // Vérifier si le sondage est actif
+        if (poll.status !== 'active') {
+            return res.status(400).json({ success: false, message: 'Ce sondage est fermé' });
+        }
+
+        // Vérifier si l'utilisateur a déjà voté (pour vote unique)
+        if (poll.poll_type === 'single') {
+            const [existingVotes] = await pool.execute(
+                'SELECT id FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
+                [pollId, userId]
+            );
+
+            if (existingVotes.length > 0) {
+                return res.status(400).json({ success: false, message: 'Vous avez déjà voté pour ce sondage' });
+            }
+        }
+
+        // Enregistrer le vote
+        await pool.execute(`
+            INSERT INTO room_poll_votes (poll_id, user_id, option_id)
+            VALUES (?, ?, ?)
+        `, [pollId, userId, option_id]);
+
+        // Récupérer les résultats mis à jour
+        const [options] = await pool.execute(`
+            SELECT * FROM room_poll_options WHERE poll_id = ? ORDER BY option_order
+        `, [pollId]);
+
+        const total_votes = options.reduce((sum, opt) => sum + (opt.vote_count || 0), 0);
+
+        // Émettre l'événement Socket.IO pour mise à jour en temps réel
+        io.to(`poll_${pollId}`).emit('vote-update', {
+            poll_id: pollId,
+            results: {
+                options: options,
+                total_votes: total_votes
+            }
+        });
+
+        console.log(`✅ Vote enregistré pour sondage ${pollId} par user ${userId}`);
+
+        res.json({
+            success: true,
+            message: 'Vote enregistré avec succès'
+        });
+
+    } catch (error) {
+        console.error('Erreur enregistrement vote:', error);
+
+        // Gérer l'erreur de contrainte unique (déjà voté)
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ success: false, message: 'Vous avez déjà voté pour ce sondage' });
+        }
+
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+});
+
+// Fermer un sondage (admin only)
 app.post('/api/rooms/polls/:pollId/close-simple', requireAuth, async (req, res) => {
     try {
         const pollId = req.params.pollId;
@@ -6479,43 +6296,26 @@ app.post('/api/rooms/polls/:pollId/close-simple', requireAuth, async (req, res) 
         `, [pollId]);
 
         if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sondage non trouvé'
-            });
+            return res.status(404).json({ success: false, message: 'Sondage non trouvé' });
         }
 
         const poll = polls[0];
         const roomId = poll.room_id;
 
         // Vérifier que l'utilisateur est admin de la room
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, roomId]);
+        const [members] = await pool.execute(
+            'SELECT role FROM room_members WHERE room_id = ? AND user_id = ? AND role = \'admin\'',
+            [roomId, userId]
+        );
 
-        if (roomInfo.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous n\'êtes pas membre de cette room'
-            });
-        }
-
-        const userRole = roomInfo[0].user_role;
-        if (userRole !== 'owner' && userRole !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Seuls les administrateurs peuvent fermer un sondage'
-            });
+        if (members.length === 0) {
+            return res.status(403).json({ success: false, message: 'Seuls les administrateurs peuvent fermer un sondage' });
         }
 
         // Fermer le sondage
-        await pool.execute(
-            'UPDATE room_polls SET status = \'closed\' WHERE id = ?',
-            [pollId]
-        );
+        await pool.execute(`
+            UPDATE room_polls SET status = 'closed' WHERE id = ?
+        `, [pollId]);
 
         // Émettre l'événement Socket.IO
         io.to(`poll_${pollId}`).emit('poll-closed', {
@@ -6541,243 +6341,7 @@ app.post('/api/rooms/polls/:pollId/close-simple', requireAuth, async (req, res) 
     }
 });
 
-// Supprimer un sondage de room (admin only) - NOUVELLE ROUTE DÉDIÉE
-app.delete('/api/rooms/polls/:pollId/delete', requireAuth, async (req, res) => {
-    try {
-        const pollId = req.params.pollId;
-        const userId = req.user.id;
-
-        // Récupérer le sondage et vérifier les permissions
-        const [polls] = await pool.execute(`
-            SELECT rp.*, r.id as room_id
-            FROM room_polls rp
-            JOIN rooms r ON rp.room_id = r.id
-            WHERE rp.id = ?
-        `, [pollId]);
-
-        if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sondage non trouvé'
-            });
-        }
-
-        const poll = polls[0];
-        const roomId = poll.room_id;
-
-        // Vérifier que l'utilisateur est admin de la room
-        const [roomInfo] = await pool.execute(`
-            SELECT r.owner_id, COALESCE(rm.role, 
-                CASE WHEN r.owner_id = ? THEN 'owner' ELSE NULL END
-            ) as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, userId, roomId]);
-
-        if (roomInfo.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous n\'êtes pas membre de cette room'
-            });
-        }
-
-        const userRole = roomInfo[0].user_role;
-        const isOwner = roomInfo[0].owner_id === userId;
-
-        if (!isOwner && userRole !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Seuls les administrateurs peuvent supprimer un sondage'
-            });
-        }
-
-        // Supprimer le sondage (les votes et options seront supprimés en cascade grâce aux FK)
-        await pool.execute(
-            'DELETE FROM room_polls WHERE id = ?',
-            [pollId]
-        );
-
-        // Émettre l'événement Socket.IO
-        io.to(`room_${roomId}`).emit('poll-deleted', {
-            poll_id: pollId,
-            poll_title: poll.title
-        });
-
-        console.log(`🗑️ Sondage room ${pollId} supprimé par user ${userId}`);
-
-        res.json({
-            success: true,
-            message: 'Sondage supprimé avec succès'
-        });
-
-    } catch (error) {
-        console.error('Erreur suppression sondage room:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
-
-// Voter pour un sondage - NOUVELLE ROUTE
-app.post('/api/rooms/polls/:pollId/vote', requireAuth, async (req, res) => {
-    try {
-        const pollId = req.params.pollId;
-        const userId = req.user.id;
-        const { option_ids } = req.body;
-
-        // Valider les options
-        if (!option_ids || !Array.isArray(option_ids) || option_ids.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Veuillez sélectionner au moins une option'
-            });
-        }
-
-        // Récupérer le sondage
-        const [polls] = await pool.execute(`
-            SELECT rp.*, r.id as room_id, r.owner_id
-            FROM room_polls rp
-            JOIN rooms r ON rp.room_id = r.id
-            WHERE rp.id = ?
-        `, [pollId]);
-
-        if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sondage non trouvé'
-            });
-        }
-
-        const poll = polls[0];
-        const roomId = poll.room_id;
-
-        // Vérifier si le sondage est actif
-        if (poll.status !== 'active') {
-            return res.status(400).json({
-                success: false,
-                message: 'Ce sondage est fermé'
-            });
-        }
-
-        // Vérifier si le sondage a expiré
-        if (poll.closes_at && new Date(poll.closes_at) < new Date()) {
-            return res.status(400).json({
-                success: false,
-                message: 'Ce sondage a expiré'
-            });
-        }
-
-        // Vérifier que l'utilisateur est membre de la room
-        const [memberCheck] = await pool.execute(`
-            SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?
-            UNION
-            SELECT 1 FROM rooms WHERE id = ? AND owner_id = ?
-        `, [roomId, userId, roomId, userId]);
-
-        if (memberCheck.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous devez être membre de la room pour voter'
-            });
-        }
-
-        // Vérifier si l'utilisateur a déjà voté
-        const [existingVotes] = await pool.execute(`
-            SELECT id FROM room_poll_votes WHERE poll_id = ? AND user_id = ?
-        `, [pollId, userId]);
-
-        // Pour les sondages à choix unique, empêcher le double vote
-        if (poll.poll_type === 'single' && existingVotes.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vous avez déjà voté pour ce sondage'
-            });
-        }
-
-        // Pour les sondages à choix multiple, supprimer les anciens votes si nécessaire
-        if (poll.poll_type === 'multiple' && existingVotes.length > 0) {
-            // Supprimer les anciens votes pour permettre de modifier son vote
-            await pool.execute(
-                'DELETE FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
-                [pollId, userId]
-            );
-        }
-
-        // Vérifier que les options existent
-        const [validOptions] = await pool.execute(`
-            SELECT id FROM room_poll_options WHERE poll_id = ? AND id IN (${option_ids.map(() => '?').join(',')})
-        `, [pollId, ...option_ids]);
-
-        if (validOptions.length !== option_ids.length) {
-            return res.status(400).json({
-                success: false,
-                message: 'Une ou plusieurs options sont invalides'
-            });
-        }
-
-        // Pour choix unique, ne garder que la première option
-        const optionsToInsert = poll.poll_type === 'single' ? [option_ids[0]] : option_ids;
-
-        // Insérer les votes
-        for (const optionId of optionsToInsert) {
-            await pool.execute(`
-                INSERT INTO room_poll_votes (poll_id, user_id, option_id)
-                VALUES (?, ?, ?)
-            `, [pollId, userId, optionId]);
-        }
-
-        // Récupérer l'option sélectionnée (pour le message)
-        const [selectedOption] = await pool.execute(
-            'SELECT option_text FROM room_poll_options WHERE id = ?',
-            [optionsToInsert[0]]
-        );
-
-        // Créer un message système
-        await pool.execute(`
-            INSERT INTO room_messages (room_id, user_id, message, message_type, related_poll_id)
-            VALUES (?, ?, ?, 'poll_vote', ?)
-        `, [roomId, userId, `${req.user.prenom} ${req.user.nom} a voté pour "${selectedOption[0].option_text}"`, pollId]);
-
-        // Récupérer les résultats mis à jour
-        const [updatedOptions] = await pool.execute(`
-            SELECT 
-                rpo.id,
-                rpo.option_text,
-                COUNT(rpv.id) as vote_count
-            FROM room_poll_options rpo
-            LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-            WHERE rpo.poll_id = ?
-            GROUP BY rpo.id
-            ORDER BY rpo.option_order
-        `, [pollId]);
-
-        // Émettre l'événement Socket.IO
-        io.to(`room_${roomId}`).emit('vote-update', {
-            poll_id: pollId,
-            results: updatedOptions,
-            voter: `${req.user.prenom} ${req.user.nom}`
-        });
-
-        io.to(`poll_${pollId}`).emit('vote-update', {
-            poll_id: pollId,
-            results: updatedOptions,
-            voter: `${req.user.prenom} ${req.user.nom}`
-        });
-
-        console.log(`✅ Vote enregistré: user ${userId} pour sondage ${pollId}`);
-
-        res.json({
-            success: true,
-            message: 'Vote enregistré avec succès',
-            results: updatedOptions
-        });
-
-    } catch (error) {
-        console.error('Erreur vote:', error);
-        res.status(500).json({ success: false, message: 'Erreur serveur' });
-    }
-});
-
-// Supprimer un sondage (admin only) - CORRIGÉ
+// Supprimer un sondage (admin only)
 app.delete('/api/polls/:id', requireAuth, async (req, res) => {
     try {
         const pollId = req.params.id;
@@ -6792,43 +6356,26 @@ app.delete('/api/polls/:id', requireAuth, async (req, res) => {
         `, [pollId]);
 
         if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sondage non trouvé'
-            });
+            return res.status(404).json({ success: false, message: 'Sondage non trouvé' });
         }
 
         const poll = polls[0];
         const roomId = poll.room_id;
 
         // Vérifier que l'utilisateur est admin de la room
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, roomId]);
+        const [members] = await pool.execute(
+            'SELECT role FROM room_members WHERE room_id = ? AND user_id = ? AND role = \'admin\'',
+            [roomId, userId]
+        );
 
-        if (roomInfo.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous n\'êtes pas membre de cette room'
-            });
-        }
-
-        const userRole = roomInfo[0].user_role;
-        if (userRole !== 'owner' && userRole !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Seuls les administrateurs peuvent supprimer un sondage'
-            });
+        if (members.length === 0) {
+            return res.status(403).json({ success: false, message: 'Seuls les administrateurs peuvent supprimer un sondage' });
         }
 
         // Supprimer le sondage (les votes et options seront supprimés en cascade)
-        await pool.execute(
-            'DELETE FROM room_polls WHERE id = ?',
-            [pollId]
-        );
+        await pool.execute(`
+            DELETE FROM room_polls WHERE id = ?
+        `, [pollId]);
 
         console.log(`🗑️ Sondage ${pollId} supprimé par user ${userId}`);
 
@@ -6883,1174 +6430,15 @@ io.on('connection', (socket) => {
     });
 });
 
-
-
-// ==================== ROUTES API MANQUANTES POUR ROOM-DETAILS ====================
-
-// 1. Route pour récupérer les votes/sondages d'une room (pour la page details)
-app.get('/api/rooms/:id/votes', requireAuth, async (req, res) => {
-    try {
-        const roomId = req.params.id;
-        const userId = req.user.id;
-
-        // Vérifier l'accès à la room
-        const [accessRows] = await pool.execute(
-            `SELECT r.room_type 
-             FROM rooms r
-             LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-             WHERE r.id = ? AND (r.room_type = 'public' OR rm.id IS NOT NULL OR r.owner_id = ?)`,
-            [userId, roomId, userId]
-        );
-
-        if (accessRows.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Accès non autorisé'
-            });
-        }
-
-        // Récupérer les sondages actifs avec leurs options
-        const [polls] = await pool.execute(`
-            SELECT rp.*, 
-                   CONCAT(u.prenom, ' ', u.nom) as creator_name,
-                   (SELECT COUNT(DISTINCT user_id) FROM room_poll_votes WHERE poll_id = rp.id) as total_votes
-            FROM room_polls rp
-            JOIN users u ON rp.created_by = u.id
-            WHERE rp.room_id = ? AND rp.status = 'active'
-            ORDER BY rp.created_at DESC
-        `, [roomId]);
-
-        // Pour chaque sondage, récupérer les options avec les votes
-        for (let poll of polls) {
-            const [options] = await pool.execute(`
-                SELECT 
-                    rpo.*,
-                    COUNT(rpv.id) as votes
-                FROM room_poll_options rpo
-                LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-                WHERE rpo.poll_id = ?
-                GROUP BY rpo.id
-                ORDER BY rpo.option_order
-            `, [poll.id]);
-
-            poll.options = options;
-
-            // Vérifier si l'utilisateur a voté
-            const [userVotes] = await pool.execute(
-                'SELECT option_id FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
-                [poll.id, userId]
-            );
-
-            poll.user_has_voted = userVotes.length > 0;
-            poll.user_vote = userVotes.length > 0 ? userVotes[0].option_id : null;
-        }
-
-        res.json({
-            success: true,
-            votes: polls // Renommé "votes" pour correspondre au frontend
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur récupération votes:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-/// Load user votes
-app.get('/api/rooms/:id/user-votes', requireAuth, async (req, res) => {
-    try {
-        const roomId = req.params.id;
-        const userId = req.user.id;
-
-        // Récupérer tous les votes de l'utilisateur dans cette room
-        const [votes] = await pool.execute(`
-            SELECT rpv.poll_id as vote_id, rpv.option_id
-            FROM room_poll_votes rpv
-            JOIN room_polls rp ON rpv.poll_id = rp.id
-            WHERE rp.room_id = ? AND rpv.user_id = ?
-        `, [roomId, userId]);
-
-        // Organiser les votes par poll_id
-        const userVotes = {};
-        votes.forEach(vote => {
-            if (!userVotes[vote.vote_id]) {
-                userVotes[vote.vote_id] = [];
-            }
-            userVotes[vote.vote_id].push(vote.option_id);
-        });
-
-        res.json({
-            success: true,
-            votes: votes,
-            organized: userVotes
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur récupération votes utilisateur:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur',
-            votes: []
-        });
-    }
-});
-// 3. Route pour créer un vote/sondage (alias de la route polls pour compatibilité)
-app.post('/api/rooms/:id/votes/create', requireAuth, async (req, res) => {
-    try {
-        const roomId = req.params.id;
-        const userId = req.user.id;
-        const { title, question, options, duration, multiple_choice } = req.body;
-
-        // Vérifier que l'utilisateur est admin
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, roomId]);
-
-        if (roomInfo.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Room non trouvée'
-            });
-        }
-
-        const userRole = roomInfo[0].user_role;
-        if (userRole !== 'owner' && userRole !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Seuls les administrateurs peuvent créer des votes'
-            });
-        }
-
-        // Validation
-        if (!title || !question || !options || options.length < 2) {
-            return res.status(400).json({
-                success: false,
-                message: 'Titre, question et au moins 2 options sont requis'
-            });
-        }
-
-        // Calculer la date de fermeture
-        let closesAt = null;
-        if (duration) {
-            closesAt = new Date();
-            closesAt.setSeconds(closesAt.getSeconds() + parseInt(duration));
-        }
-
-        // Créer le sondage
-        const [pollResult] = await pool.execute(`
-            INSERT INTO room_polls 
-            (room_id, title, question, created_by, poll_type, is_anonymous, closes_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [
-            roomId,
-            title,
-            question,
-            userId,
-            multiple_choice ? 'multiple' : 'single',
-            0,
-            closesAt
-        ]);
-
-        const pollId = pollResult.insertId;
-
-        // Ajouter les options
-        for (let i = 0; i < options.length; i++) {
-            await pool.execute(`
-                INSERT INTO room_poll_options (poll_id, option_text, option_order)
-                VALUES (?, ?, ?)
-            `, [pollId, options[i], i]);
-        }
-
-        // Créer un message système
-        await pool.execute(`
-            INSERT INTO room_messages (room_id, user_id, message, message_type, related_poll_id)
-            VALUES (?, ?, ?, 'poll_created', ?)
-        `, [roomId, userId, `${req.user.prenom} ${req.user.nom} a créé un vote: "${title}"`, pollId]);
-
-        // Récupérer le vote créé avec les options
-        const [votes] = await pool.execute(`
-            SELECT rp.*, 
-                   CONCAT(u.prenom, ' ', u.nom) as creator_name
-            FROM room_polls rp
-            JOIN users u ON rp.created_by = u.id
-            WHERE rp.id = ?
-        `, [pollId]);
-
-        const [pollOptions] = await pool.execute(`
-            SELECT *, 0 as votes FROM room_poll_options WHERE poll_id = ? ORDER BY option_order
-        `, [pollId]);
-
-        const vote = votes[0];
-        vote.options = pollOptions;
-        vote.total_votes = 0;
-        vote.multiple_choice = multiple_choice ? 1 : 0;
-
-        // Émettre l'événement Socket.IO
-        io.to(`room_${roomId}`).emit('vote-created', {
-            room_id: roomId,
-            vote: vote
-        });
-
-        console.log(`✅ Vote créé: ${pollId} dans room ${roomId}`);
-
-        res.json({
-            success: true,
-            message: 'Vote créé avec succès',
-            vote: vote
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur création vote:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-// 4. Route pour voter (compatible avec le frontend room-details)
-app.post('/api/votes/:voteId/vote', requireAuth, async (req, res) => {
-    try {
-        const voteId = req.params.voteId; // C'est en fait un poll_id
-        const userId = req.user.id;
-        const { option_ids } = req.body;
-
-        if (!option_ids || !Array.isArray(option_ids) || option_ids.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Options requises'
-            });
-        }
-
-        // Récupérer le sondage
-        const [polls] = await pool.execute(`
-            SELECT rp.*, r.id as room_id 
-            FROM room_polls rp
-            JOIN rooms r ON rp.room_id = r.id
-            WHERE rp.id = ? AND rp.status = 'active' 
-            AND (rp.closes_at IS NULL OR rp.closes_at > NOW())
-        `, [voteId]);
-
-        if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Vote non trouvé ou terminé'
-            });
-        }
-
-        const poll = polls[0];
-
-        // Vérifier l'appartenance à la room
-        const [memberRows] = await pool.execute(
-            'SELECT id FROM room_members WHERE room_id = ? AND user_id = ?',
-            [poll.room_id, userId]
-        );
-
-        if (memberRows.length === 0) {
-            // Vérifier si c'est le propriétaire
-            const [ownerRows] = await pool.execute(
-                'SELECT owner_id FROM rooms WHERE id = ?',
-                [poll.room_id]
-            );
-
-            if (ownerRows.length === 0 || ownerRows[0].owner_id !== userId) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Vous devez être membre de la room'
-                });
-            }
-        }
-
-        // Vérifier si déjà voté
-        const [existingVotes] = await pool.execute(
-            'SELECT id FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
-            [voteId, userId]
-        );
-
-        if (existingVotes.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vous avez déjà voté'
-            });
-        }
-
-        // Vérifier que les options appartiennent au sondage
-        for (const optionId of option_ids) {
-            const [optionRows] = await pool.execute(
-                'SELECT id FROM room_poll_options WHERE id = ? AND poll_id = ?',
-                [optionId, voteId]
-            );
-
-            if (optionRows.length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Option invalide: ${optionId}`
-                });
-            }
-        }
-
-        // Enregistrer les votes
-        for (const optionId of option_ids) {
-            await pool.execute(
-                'INSERT INTO room_poll_votes (poll_id, user_id, option_id) VALUES (?, ?, ?)',
-                [voteId, userId, optionId]
-            );
-        }
-
-        // Récupérer les résultats mis à jour
-        const [options] = await pool.execute(`
-            SELECT 
-                rpo.*,
-                COUNT(rpv.id) as votes
-            FROM room_poll_options rpo
-            LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-            WHERE rpo.poll_id = ?
-            GROUP BY rpo.id
-            ORDER BY rpo.option_order
-        `, [voteId]);
-
-        const total_votes = options.reduce((sum, opt) => sum + (parseInt(opt.votes) || 0), 0);
-
-        // Émettre l'événement Socket.IO
-        io.to(`room_${poll.room_id}`).emit('vote-update', {
-            vote_id: voteId,
-            results: {
-                options: options,
-                total_votes: total_votes
-            }
-        });
-
-        console.log(`✅ Vote enregistré pour le sondage ${voteId}`);
-
-        res.json({
-            success: true,
-            message: 'Vote enregistré avec succès',
-            results: {
-                options: options,
-                total_votes: total_votes
-            }
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur vote:', error);
-
-        if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vous avez déjà voté'
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-// 5. Route pour récupérer les résultats d'un vote
-app.get('/api/votes/:voteId/results', requireAuth, async (req, res) => {
-    try {
-        const voteId = req.params.voteId;
-
-        // Récupérer les options avec les votes
-        const [options] = await pool.execute(`
-            SELECT 
-                rpo.*,
-                COUNT(rpv.id) as votes
-            FROM room_poll_options rpo
-            LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-            WHERE rpo.poll_id = ?
-            GROUP BY rpo.id
-            ORDER BY rpo.option_order
-        `, [voteId]);
-
-        const total_votes = options.reduce((sum, opt) => sum + (parseInt(opt.votes) || 0), 0);
-
-        res.json({
-            success: true,
-            options: options,
-            total_votes: total_votes
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur résultats vote:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-// 6. Route pour fermer un vote (admin only)
-app.post('/api/votes/:voteId/close', requireAuth, async (req, res) => {
-    try {
-        const voteId = req.params.voteId;
-        const userId = req.user.id;
-
-        // Récupérer le sondage et vérifier les permissions
-        const [polls] = await pool.execute(`
-            SELECT rp.*, r.id as room_id
-            FROM room_polls rp
-            JOIN rooms r ON rp.room_id = r.id
-            WHERE rp.id = ?
-        `, [voteId]);
-
-        if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Vote non trouvé'
-            });
-        }
-
-        const poll = polls[0];
-        const roomId = poll.room_id;
-
-        // Vérifier que l'utilisateur est admin de la room
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, roomId]);
-
-        if (roomInfo.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous n\'êtes pas membre de cette room'
-            });
-        }
-
-        const userRole = roomInfo[0].user_role;
-        if (userRole !== 'owner' && userRole !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Seuls les administrateurs peuvent fermer un vote'
-            });
-        }
-
-        // Fermer le vote
-        await pool.execute(
-            'UPDATE room_polls SET status = \'closed\' WHERE id = ?',
-            [voteId]
-        );
-
-        // Créer un message système
-        await pool.execute(`
-            INSERT INTO room_messages (room_id, user_id, message, message_type, related_poll_id)
-            VALUES (?, ?, ?, 'system', ?)
-        `, [roomId, userId, `${req.user.prenom} ${req.user.nom} a fermé le vote "${poll.title}"`, voteId]);
-
-        // Émettre l'événement Socket.IO
-        io.to(`room_${roomId}`).emit('vote-closed', {
-            vote_id: voteId,
-            vote_title: poll.title
-        });
-
-        console.log(`🔒 Vote ${voteId} fermé par user ${userId}`);
-
-        res.json({
-            success: true,
-            message: 'Vote fermé avec succès'
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur fermeture vote:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-console.log('✅ Routes API room-details ajoutées');
-
-// ==================== ROUTES API SUPPLEMENTAIRES ====================
-
-// Route pour récupérer les votes d'une room
-app.get('/api/rooms/:id/votes', requireAuth, async (req, res) => {
-    try {
-        const roomId = req.params.id;
-        const userId = req.user.id;
-
-        // Vérifier l'accès à la room
-        const [accessRows] = await pool.execute(
-            `SELECT r.room_type 
-             FROM rooms r
-             LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-             WHERE r.id = ? AND (r.room_type = 'public' OR rm.id IS NOT NULL OR r.owner_id = ?)`,
-            [userId, roomId, userId]
-        );
-
-        if (accessRows.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Accès non autorisé'
-            });
-        }
-
-        // Récupérer les votes ACTIFS avec leurs options
-        const [polls] = await pool.execute(`
-            SELECT rp.*, 
-                   CONCAT(u.prenom, ' ', u.nom) as creator_name,
-                   (SELECT COUNT(DISTINCT user_id) FROM room_poll_votes WHERE poll_id = rp.id) as total_votes,
-                   rp.poll_type as multiple_choice
-            FROM room_polls rp
-            JOIN users u ON rp.created_by = u.id
-            WHERE rp.room_id = ? AND rp.status = 'active'
-            ORDER BY rp.created_at DESC
-        `, [roomId]);
-
-        // Pour chaque sondage, récupérer les options avec les votes
-        for (let poll of polls) {
-            const [options] = await pool.execute(`
-                SELECT 
-                    rpo.id,
-                    rpo.option_text as text,
-                    rpo.option_order,
-                    COUNT(rpv.id) as votes
-                FROM room_poll_options rpo
-                LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-                WHERE rpo.poll_id = ?
-                GROUP BY rpo.id, rpo.option_text, rpo.option_order
-                ORDER BY rpo.option_order
-            `, [poll.id]);
-
-            poll.options = options;
-
-            // Vérifier si l'utilisateur a voté
-            const [userVotes] = await pool.execute(
-                'SELECT option_id FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
-                [poll.id, userId]
-            );
-
-            poll.user_has_voted = userVotes.length > 0;
-            poll.user_vote = userVotes.length > 0 ? userVotes.map(v => v.option_id) : [];
-        }
-
-        res.json({
-            success: true,
-            votes: polls
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur récupération votes:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-// Route pour rouvrir un vote
-app.post('/api/votes/:voteId/reopen', requireAuth, async (req, res) => {
-    try {
-        const voteId = req.params.voteId;
-        const userId = req.user.id;
-
-        // Récupérer le sondage et vérifier les permissions
-        const [polls] = await pool.execute(`
-            SELECT rp.*, r.id as room_id
-            FROM room_polls rp
-            JOIN rooms r ON rp.room_id = r.id
-            WHERE rp.id = ?
-        `, [voteId]);
-
-        if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Vote non trouvé'
-            });
-        }
-
-        const poll = polls[0];
-        const roomId = poll.room_id;
-
-        // Vérifier que l'utilisateur est admin de la room
-        const [roomInfo] = await pool.execute(`
-            SELECT r.*, COALESCE(rm.role, 'owner') as user_role
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ?
-        `, [userId, roomId]);
-
-        if (roomInfo.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous n\'êtes pas membre de cette room'
-            });
-        }
-
-        const userRole = roomInfo[0].user_role;
-        if (userRole !== 'owner' && userRole !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Seuls les administrateurs peuvent rouvrir un vote'
-            });
-        }
-
-        // Rouvrir le vote
-        await pool.execute(
-            'UPDATE room_polls SET status = \'active\' WHERE id = ?',
-            [voteId]
-        );
-
-        // Créer un message système
-        await pool.execute(`
-            INSERT INTO room_messages (room_id, user_id, message, message_type, related_poll_id)
-            VALUES (?, ?, ?, 'system', ?)
-        `, [roomId, userId, `${req.user.prenom} ${req.user.nom} a rouvert le vote "${poll.title}"`, voteId]);
-
-        // Émettre l'événement Socket.IO
-        io.to(`room_${roomId}`).emit('vote-reopened', {
-            vote_id: voteId,
-            vote_title: poll.title
-        });
-
-        console.log(`🔄 Vote ${voteId} rouvert par user ${userId}`);
-
-        res.json({
-            success: true,
-            message: 'Vote rouvert avec succès'
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur réouverture vote:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-// Route pour voter (version corrigée)
-app.post('/api/votes/:voteId/vote', requireAuth, async (req, res) => {
-    try {
-        const voteId = req.params.voteId;
-        const userId = req.user.id;
-        const { option_ids } = req.body;
-
-        if (!option_ids || !Array.isArray(option_ids) || option_ids.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Veuillez sélectionner au moins une option'
-            });
-        }
-
-        // Récupérer le sondage
-        const [polls] = await pool.execute(`
-            SELECT rp.*, r.id as room_id, rp.poll_type as multiple_choice
-            FROM room_polls rp
-            JOIN rooms r ON rp.room_id = r.id
-            WHERE rp.id = ? AND rp.status = 'active'
-        `, [voteId]);
-
-        if (polls.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Vote non trouvé ou inactif'
-            });
-        }
-
-        const poll = polls[0];
-        const isMultiple = poll.multiple_choice === 'multiple';
-
-        // Vérifier l'appartenance à la room
-        const [memberRows] = await pool.execute(
-            'SELECT id FROM room_members WHERE room_id = ? AND user_id = ?',
-            [poll.room_id, userId]
-        );
-
-        const isOwner = await pool.execute(
-            'SELECT owner_id FROM rooms WHERE id = ? AND owner_id = ?',
-            [poll.room_id, userId]
-        );
-
-        if (memberRows.length === 0 && isOwner[0].length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Vous devez être membre de la room pour voter'
-            });
-        }
-
-        // Vérifier si déjà voté (sauf pour votes multiples)
-        if (!isMultiple) {
-            const [existingVotes] = await pool.execute(
-                'SELECT id FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
-                [voteId, userId]
-            );
-
-            if (existingVotes.length > 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Vous avez déjà voté pour ce sondage'
-                });
-            }
-        }
-
-        // Vérifier que les options appartiennent au sondage
-        for (const optionId of option_ids) {
-            const [optionRows] = await pool.execute(
-                'SELECT id FROM room_poll_options WHERE id = ? AND poll_id = ?',
-                [optionId, voteId]
-            );
-
-            if (optionRows.length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Option invalide: ${optionId}`
-                });
-            }
-        }
-
-        // Pour les votes multiples, supprimer d'abord les votes existants
-        if (isMultiple) {
-            await pool.execute(
-                'DELETE FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
-                [voteId, userId]
-            );
-        }
-
-        // Enregistrer les votes
-        for (const optionId of option_ids) {
-            await pool.execute(
-                'INSERT INTO room_poll_votes (poll_id, user_id, option_id) VALUES (?, ?, ?)',
-                [voteId, userId, optionId]
-            );
-        }
-
-        // Récupérer les résultats mis à jour
-        const [options] = await pool.execute(`
-            SELECT 
-                rpo.*,
-                COUNT(rpv.id) as votes
-            FROM room_poll_options rpo
-            LEFT JOIN room_poll_votes rpv ON rpo.id = rpv.option_id
-            WHERE rpo.poll_id = ?
-            GROUP BY rpo.id
-            ORDER BY rpo.option_order
-        `, [voteId]);
-
-        const total_votes = options.reduce((sum, opt) => sum + (parseInt(opt.votes) || 0), 0);
-
-        // Émettre l'événement Socket.IO
-        io.to(`room_${poll.room_id}`).emit('vote-update', {
-            vote_id: voteId,
-            results: {
-                options: options,
-                total_votes: total_votes
-            }
-        });
-
-        console.log(`✅ Vote enregistré pour le sondage ${voteId}`);
-
-        res.json({
-            success: true,
-            message: 'Vote enregistré avec succès',
-            results: {
-                options: options,
-                total_votes: total_votes
-            }
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur vote:', error);
-
-        if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vous avez déjà voté pour cette option'
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-// ==================== ROUTES POUR UTILISATEURS NORMAUX DE ROOMS ====================
-
-// Route pour récupérer les détails d'une room (version utilisateur normal)
-app.get('/api/rooms/:id/details-user', requireAuth, async (req, res) => {
-    try {
-        const roomId = req.params.id;
-        const userId = req.user.id;
-
-        // Vérifier si l'utilisateur est membre ou si la room est publique
-        const [roomRows] = await pool.execute(`
-            SELECT r.*, 
-                   CONCAT(u.prenom, ' ', u.nom) as owner_name,
-                   (r.owner_id = ?) as is_owner,
-                   (r.owner_id = ? OR EXISTS (
-                       SELECT 1 FROM room_members rm 
-                       WHERE rm.room_id = r.id AND rm.user_id = ?
-                   )) as is_member,
-                   r.room_type as type,
-                   CASE 
-                       WHEN r.room_type = 'private' AND r.owner_id = ? THEN 'owner'
-                       WHEN r.room_type = 'private' AND EXISTS (
-                           SELECT 1 FROM room_members rm 
-                           WHERE rm.room_id = r.id AND rm.user_id = ?
-                       ) THEN 'member'
-                       WHEN r.room_type = 'public' THEN 'guest'
-                       ELSE 'none'
-                   END as access_status
-            FROM rooms r
-            JOIN users u ON r.owner_id = u.id
-            WHERE r.id = ? AND r.status != 'archived'
-        `, [userId, userId, userId, userId, userId, roomId]);
-
-        if (roomRows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Room non trouvée'
-            });
-        }
-
-        const room = roomRows[0];
-
-        // Vérifier l'accès
-        if (room.type === 'private' && room.access_status === 'none') {
-            return res.status(403).json({
-                success: false,
-                message: 'Accès refusé. Cette room est privée.'
-            });
-        }
-
-        // Récupérer les membres de la room
-        const [members] = await pool.execute(`
-            SELECT 
-                u.id,
-                CONCAT(u.prenom, ' ', u.nom) as name,
-                u.email,
-                CASE 
-                    WHEN r.owner_id = u.id THEN 'owner'
-                    ELSE COALESCE(rm.role, 'member')
-                END as role,
-                rm.joined_at,
-                (SELECT COUNT(*) FROM room_messages m 
-                 WHERE m.room_id = ? AND m.user_id = u.id 
-                 AND m.created_at > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) > 0 as is_online
-            FROM users u
-            LEFT JOIN room_members rm ON u.id = rm.user_id AND rm.room_id = ?
-            JOIN rooms r ON r.id = ?
-            WHERE r.id = ? AND (r.owner_id = u.id OR rm.user_id IS NOT NULL)
-            ORDER BY 
-                CASE WHEN r.owner_id = u.id THEN 0 ELSE 1 END,
-                rm.joined_at ASC
-        `, [roomId, roomId, roomId, roomId]);
-
-        // Récupérer tous les sondages (actifs et fermés)
-        const [polls] = await pool.execute(`
-            SELECT 
-                p.*,
-                CONCAT(u.prenom, ' ', u.nom) as creator_name,
-                (SELECT COUNT(DISTINCT user_id) FROM room_poll_votes WHERE poll_id = p.id) as total_votes,
-                (SELECT COUNT(*) FROM room_poll_votes WHERE poll_id = p.id AND user_id = ?) as user_voted,
-                CASE 
-                    WHEN p.status = 'active' AND (p.closes_at IS NULL OR p.closes_at > NOW()) THEN 'active'
-                    ELSE 'closed'
-                END as vote_status
-            FROM room_polls p
-            JOIN users u ON p.created_by = u.id
-            WHERE p.room_id = ?
-            ORDER BY 
-                CASE WHEN vote_status = 'active' THEN 0 ELSE 1 END,
-                p.created_at DESC
-        `, [userId, roomId]);
-
-        // Pour chaque sondage, récupérer les options
-        for (let poll of polls) {
-            const [options] = await pool.execute(`
-                SELECT 
-                    o.*,
-                    COUNT(v.id) as votes,
-                    (SELECT COUNT(*) FROM room_poll_votes 
-                     WHERE poll_id = ? AND option_id = o.id AND user_id = ?) as user_selected
-                FROM room_poll_options o
-                LEFT JOIN room_poll_votes v ON o.id = v.option_id
-                WHERE o.poll_id = ?
-                GROUP BY o.id
-                ORDER BY o.option_order
-            `, [poll.id, userId, poll.id]);
-
-            poll.options = options;
-            poll.user_has_voted = poll.user_voted > 0;
-
-            // Calculer les pourcentages
-            if (poll.total_votes > 0) {
-                poll.options.forEach(option => {
-                    option.percentage = Math.round((option.votes / poll.total_votes) * 100);
-                });
-            }
-        }
-
-        // Récupérer les statistiques
-        const [stats] = await pool.execute(`
-            SELECT 
-                (SELECT COUNT(*) FROM room_messages WHERE room_id = ?) as total_messages,
-                (SELECT COUNT(*) FROM room_members WHERE room_id = ?) + 1 as total_members,
-                (SELECT COUNT(*) FROM room_polls WHERE room_id = ?) as total_polls,
-                (SELECT COUNT(*) FROM room_polls WHERE room_id = ? AND status = 'active') as active_polls
-        `, [roomId, roomId, roomId, roomId]);
-
-        res.json({
-            success: true,
-            room: {
-                id: room.id,
-                name: room.name,
-                description: room.description || 'Aucune description',
-                type: room.type,
-                status: room.status,
-                owner_name: room.owner_name,
-                created_at: room.created_at,
-                current_members: room.current_members,
-                max_members: room.max_members,
-                is_member: room.is_member,
-                is_owner: room.is_owner
-            },
-            members: members,
-            polls: polls,
-            stats: stats[0],
-            user: {
-                id: userId,
-                name: `${req.user.prenom} ${req.user.nom}`
-            }
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur détails room utilisateur:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-// Route pour voter dans un sondage (version simplifiée)
-app.post('/api/rooms/polls/:pollId/vote-simple', requireAuth, async (req, res) => {
-    try {
-        const pollId = req.params.pollId;
-        const userId = req.user.id;
-        const { option_ids } = req.body; // Peut être un tableau pour votes multiples
-
-        if (!option_ids || (Array.isArray(option_ids) && option_ids.length === 0)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Veuillez sélectionner une option'
-            });
-        }
-
-        // Récupérer le sondage
-        const [pollRows] = await pool.execute(`
-            SELECT p.*, r.id as room_id, r.room_type
-            FROM room_polls p
-            JOIN rooms r ON p.room_id = r.id
-            WHERE p.id = ? AND p.status = 'active'
-        `, [pollId]);
-
-        if (pollRows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sondage non trouvé ou terminé'
-            });
-        }
-
-        const poll = pollRows[0];
-
-        // Vérifier l'accès à la room
-        const [accessRows] = await pool.execute(`
-            SELECT 1 
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ? AND (r.room_type = 'public' OR rm.id IS NOT NULL OR r.owner_id = ?)
-        `, [userId, poll.room_id, userId]);
-
-        if (accessRows.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Accès refusé'
-            });
-        }
-
-        // Pour les votes uniques, vérifier si déjà voté
-        if (poll.poll_type === 'single') {
-            const [existingVote] = await pool.execute(
-                'SELECT id FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
-                [pollId, userId]
-            );
-
-            if (existingVote.length > 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Vous avez déjà voté pour ce sondage'
-                });
-            }
-        }
-
-        // Pour les votes multiples, supprimer d'abord les anciens votes
-        // IMPORTANT: Supprimer TOUS les votes existants pour permettre de changer de vote
-        await pool.execute(
-            'DELETE FROM room_poll_votes WHERE poll_id = ? AND user_id = ?',
-            [pollId, userId]
-        );
-
-        // Enregistrer les votes
-        const options = Array.isArray(option_ids) ? option_ids : [option_ids];
-
-        // Pour choix unique, ne garder que la première option
-        const optionsToInsert = poll.poll_type === 'single' ? [options[0]] : options;
-
-        for (const optionId of optionsToInsert) {
-            // Vérifier que l'option appartient au sondage
-            const [optionRows] = await pool.execute(
-                'SELECT id FROM room_poll_options WHERE id = ? AND poll_id = ?',
-                [optionId, pollId]
-            );
-
-            if (optionRows.length === 0) {
-                continue; // Ignorer les options invalides
-            }
-
-            // Utiliser INSERT pour chaque option (le DELETE précédent a libéré les contraintes)
-            await pool.execute(
-                'INSERT INTO room_poll_votes (poll_id, user_id, option_id) VALUES (?, ?, ?)',
-                [pollId, userId, optionId]
-            );
-        }
-
-        // Récupérer les résultats mis à jour
-        const [results] = await pool.execute(`
-            SELECT 
-                o.*,
-                COUNT(v.id) as votes,
-                (SELECT COUNT(*) FROM room_poll_votes 
-                 WHERE poll_id = ? AND option_id = o.id AND user_id = ?) as user_selected
-            FROM room_poll_options o
-            LEFT JOIN room_poll_votes v ON o.id = v.option_id
-            WHERE o.poll_id = ?
-            GROUP BY o.id
-            ORDER BY o.option_order
-        `, [pollId, userId, pollId]);
-
-        const total_votes = results.reduce((sum, opt) => sum + (parseInt(opt.votes) || 0), 0);
-
-        // Calculer les pourcentages
-        const optionsWithPercentage = results.map(option => ({
-            ...option,
-            percentage: total_votes > 0 ? Math.round((option.votes / total_votes) * 100) : 0
-        }));
-
-        // Émettre l'événement WebSocket
-        io.to(`room_${poll.room_id}`).emit('poll-update', {
-            poll_id: pollId,
-            results: {
-                options: optionsWithPercentage,
-                total_votes: total_votes
-            }
-        });
-
-        console.log(`✅ Vote enregistré pour le sondage ${pollId}`);
-
-        res.json({
-            success: true,
-            message: 'Vote enregistré avec succès',
-            results: {
-                options: optionsWithPercentage,
-                total_votes: total_votes,
-                user_has_voted: true
-            }
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur vote simplifié:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
-});
-
-// Route pour récupérer les résultats d'un sondage en temps réel
-app.get('/api/rooms/polls/:pollId/live-results', requireAuth, async (req, res) => {
-    try {
-        const pollId = req.params.pollId;
-        const userId = req.user.id;
-
-        const [pollRows] = await pool.execute(`
-            SELECT p.*, r.id as room_id
-            FROM room_polls p
-            JOIN rooms r ON p.room_id = r.id
-            WHERE p.id = ?
-        `, [pollId]);
-
-        if (pollRows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Sondage non trouvé'
-            });
-        }
-
-        const poll = pollRows[0];
-
-        // Vérifier l'accès à la room
-        const [accessRows] = await pool.execute(`
-            SELECT 1 
-            FROM rooms r
-            LEFT JOIN room_members rm ON r.id = rm.room_id AND rm.user_id = ?
-            WHERE r.id = ? AND (r.room_type = 'public' OR rm.id IS NOT NULL OR r.owner_id = ?)
-        `, [userId, poll.room_id, userId]);
-
-        if (accessRows.length === 0) {
-            return res.status(403).json({
-                success: false,
-                message: 'Accès refusé'
-            });
-        }
-
-        // Récupérer les résultats
-        const [results] = await pool.execute(`
-            SELECT 
-                o.*,
-                COUNT(v.id) as votes,
-                (SELECT COUNT(*) FROM room_poll_votes 
-                 WHERE poll_id = ? AND option_id = o.id AND user_id = ?) as user_selected
-            FROM room_poll_options o
-            LEFT JOIN room_poll_votes v ON o.id = v.option_id
-            WHERE o.poll_id = ?
-            GROUP BY o.id
-            ORDER BY o.option_order
-        `, [pollId, userId, pollId]);
-
-        const total_votes = results.reduce((sum, opt) => sum + (parseInt(opt.votes) || 0), 0);
-
-        // Calculer les pourcentages
-        const optionsWithPercentage = results.map(option => ({
-            ...option,
-            percentage: total_votes > 0 ? Math.round((option.votes / total_votes) * 100) : 0
-        }));
-
-        res.json({
-            success: true,
-            results: {
-                options: optionsWithPercentage,
-                total_votes: total_votes
-            }
-        });
-
-    } catch (error) {
-        console.error('❌ Erreur résultats live:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erreur serveur'
-        });
-    }
+// ==================== DÉMARRAGE DU SERVEUR ====================
+
+// Initialiser la connexion à la base de données puis démarrer le serveur
+createPool().then(() => {
+    httpServer.listen(PORT, () => {
+        console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+        console.log(`⚡ Socket.IO activé`);
+    });
+}).catch(error => {
+    console.error('❌ Erreur lors du démarrage:', error);
+    process.exit(1);
 });

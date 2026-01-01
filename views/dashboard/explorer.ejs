@@ -3,14 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< Updated upstream
     <title>Explorer - iVote</title>
     
     <!-- Google Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+=======
+    <title>Explorer | iVote</title>
+>>>>>>> Stashed changes
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+<<<<<<< Updated upstream
     <!-- AOS pour les animations -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
@@ -1049,8 +1054,103 @@
                     <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="shape-fill"></path>
                 </svg>
             </div>
+=======
+    <!-- Google Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <style>
+        .explorer-card {
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        .explorer-card:hover {
+            border-color: #6366f1;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.1);
+        }
+        .category-filter {
+            transition: all 0.2s ease;
+        }
+        .category-filter.active {
+            background-color: #6366f1;
+            color: white;
+        }
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="p-6">
+        <!-- EN-TÊTE -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Explorer</h1>
+            <p class="text-gray-600">Découvrez les sondages, votes et élections populaires</p>
+            
+            <!-- BARRE DE RECHERCHE ET FILTRES -->
+            <div class="flex flex-col md:flex-row gap-4 mt-6">
+                <div class="flex-1">
+                    <div class="relative">
+                        <span class="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
+                        <input 
+                            type="text" 
+                            placeholder="Rechercher par titre, question ou créateur..." 
+                            class="w-full pl-10 pr-4 py-3 bg-white rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                            id="searchInput"
+                        >
+                    </div>
+                </div>
+                
+                <div class="flex gap-2">
+                    <select class="px-4 py-3 bg-white rounded-lg border border-gray-300 focus:border-indigo-500 outline-none transition" id="typeFilter">
+                        <option value="all">Tous les types</option>
+                        <option value="sondage">Sondages</option>
+                        <option value="vote">Votes</option>
+                        <option value="election">Élections</option>
+                    </select>
+                    
+                    <select class="px-4 py-3 bg-white rounded-lg border border-gray-300 focus:border-indigo-500 outline-none transition" id="statusFilter">
+                        <option value="all">Tous les statuts</option>
+                        <option value="active">Actifs</option>
+                        <option value="closed">Terminés</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- CATÉGORIES -->
+            <div class="flex flex-wrap gap-2 mt-4" id="categoriesList">
+                <!-- Les catégories seront chargées dynamiquement -->
+            </div>
         </div>
 
+        <!-- CONTENU PRINCIPAL -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="pollsContainer">
+            <!-- Les sondages/votes seront chargés ici dynamiquement -->
+            <div class="text-center py-12" id="loadingState">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
+                <p class="text-gray-500">Chargement des données...</p>
+            </div>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="flex justify-center items-center gap-4 mt-8" id="pagination" style="display: none;">
+            <button id="prevPage" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>
+                <span class="material-icons">chevron_left</span>
+            </button>
+            <span class="text-gray-600" id="pageInfo">Page 1 sur 1</span>
+            <button id="nextPage" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>
+                <span class="material-icons">chevron_right</span>
+            </button>
+>>>>>>> Stashed changes
+        </div>
+
+<<<<<<< Updated upstream
         <!-- Filtres améliorés du premier code -->
         <div class="filters-section" data-aos="fade-up" data-aos-delay="100">
             <div class="filter-group">
@@ -1143,11 +1243,31 @@
             <div class="modal-body">
                 <div id="resultsContainer">
                     <!-- Les résultats seront chargés ici -->
+=======
+    <!-- MODAL POUR LES DÉTAILS -->
+    <div id="pollModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <span id="modalPollType" class="inline-block px-3 py-1 rounded-full text-xs font-medium mb-2"></span>
+                        <h2 id="modalPollTitle" class="text-2xl font-bold text-gray-800"></h2>
+                        <p id="modalPollQuestion" class="text-gray-600 mt-1"></p>
+                    </div>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                
+                <div id="modalPollContent">
+                    <!-- Contenu chargé dynamiquement -->
+>>>>>>> Stashed changes
                 </div>
             </div>
         </div>
     </div>
 
+<<<<<<< Updated upstream
     <!-- Modal pour les réactions -->
     <div id="reactionsModal" class="modal">
         <div class="modal-content reactions-modal">
@@ -1643,10 +1763,423 @@
                                     <div class="reaction-count" onclick="showReactionDetails(${poll.id}, '${type}')">
                                         <span class="reaction-emoji">${reaction ? reaction.emoji : '👍'}</span>
                                         <span class="reaction-user-count">${data.count}</span>
+=======
+    <script>
+        // Variables globales
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentFilters = {
+            search: '',
+            type: 'all',
+            status: 'all',
+            category: 'all'
+        };
+
+        // Fonction pour charger les catégories
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const container = document.getElementById('categoriesList');
+                    container.innerHTML = '';
+                    
+                    // Bouton "Toutes"
+                    const allBtn = document.createElement('button');
+                    allBtn.className = 'category-filter px-4 py-2 rounded-lg border border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 transition active';
+                    allBtn.textContent = 'Toutes';
+                    allBtn.dataset.category = 'all';
+                    allBtn.onclick = () => filterByCategory('all');
+                    container.appendChild(allBtn);
+                    
+                    // Ajouter chaque catégorie
+                    data.categories.forEach(category => {
+                        const btn = document.createElement('button');
+                        btn.className = 'category-filter px-4 py-2 rounded-lg border border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 transition';
+                        btn.innerHTML = `
+                            <span class="material-icons align-text-bottom mr-1 text-sm">${category.icon}</span>
+                            ${category.name}
+                        `;
+                        btn.dataset.category = category.id;
+                        btn.onclick = () => filterByCategory(category.id);
+                        container.appendChild(btn);
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur chargement catégories:', error);
+            }
+        }
+
+        // Fonction pour charger les sondages
+        async function loadPolls(page = 1) {
+            try {
+                // Afficher le chargement
+                document.getElementById('loadingState').style.display = 'block';
+                document.getElementById('pagination').style.display = 'none';
+                
+                // Construire les paramètres
+                const params = new URLSearchParams({
+                    page: page,
+                    limit: 12,
+                    ...currentFilters
+                });
+                
+                const response = await fetch(`/api/explorer/polls?${params}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderPolls(data.polls);
+                    updatePagination(data.total, data.page, data.pages);
+                } else {
+                    showError('Erreur lors du chargement des données');
+                }
+                
+                document.getElementById('loadingState').style.display = 'none';
+            } catch (error) {
+                console.error('Erreur chargement sondages:', error);
+                document.getElementById('loadingState').style.display = 'none';
+                showError('Erreur de connexion au serveur');
+            }
+        }
+
+        // Fonction pour afficher les sondages
+        function renderPolls(polls) {
+            const container = document.getElementById('pollsContainer');
+            container.innerHTML = '';
+            
+            if (polls.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <span class="material-icons text-gray-400 text-6xl mb-4">search_off</span>
+                        <h3 class="text-xl font-medium text-gray-600 mb-2">Aucun résultat trouvé</h3>
+                        <p class="text-gray-500">Essayez de modifier vos critères de recherche</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            polls.forEach(poll => {
+                const card = createPollCard(poll);
+                container.appendChild(card);
+            });
+        }
+
+        // Fonction pour créer une carte de sondage
+        function createPollCard(poll) {
+            const card = document.createElement('div');
+            card.className = 'explorer-card bg-white rounded-xl shadow-sm p-5 cursor-pointer';
+            card.onclick = () => openPollModal(poll.id);
+            
+            // Déterminer le type et la couleur
+            let typeLabel, typeColor, icon;
+            switch(poll.poll_category) {
+                case 'sondage':
+                    typeLabel = 'Sondage';
+                    typeColor = 'bg-blue-100 text-blue-800';
+                    icon = 'poll';
+                    break;
+                case 'vote':
+                    typeLabel = 'Vote Officiel';
+                    typeColor = 'bg-green-100 text-green-800';
+                    icon = 'how_to_vote';
+                    break;
+                case 'election':
+                    typeLabel = 'Élection';
+                    typeColor = 'bg-purple-100 text-purple-800';
+                    icon = 'gavel';
+                    break;
+                default:
+                    typeLabel = 'Sondage';
+                    typeColor = 'bg-gray-100 text-gray-800';
+                    icon = 'help';
+            }
+            
+            // Format de la date
+            const endDate = new Date(poll.end_time);
+            const now = new Date();
+            const timeLeft = endDate - now;
+            const daysLeft = Math.ceil(timeLeft / (1000 * 60 * 60 * 24));
+            
+            let timeText = '';
+            if (timeLeft <= 0) {
+                timeText = 'Terminé';
+            } else if (daysLeft === 1) {
+                timeText = '1 jour restant';
+            } else if (daysLeft > 1) {
+                timeText = `${daysLeft} jours restants`;
+            } else {
+                const hoursLeft = Math.ceil(timeLeft / (1000 * 60 * 60));
+                timeText = `${hoursLeft} heures restantes`;
+            }
+            
+            // Compter les options
+            const optionsCount = poll.options_count || 0;
+            const votesCount = poll.total_votes || 0;
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-medium ${typeColor}">
+                        <span class="material-icons align-text-bottom mr-1" style="font-size: 14px">${icon}</span>
+                        ${typeLabel}
+                    </span>
+                    ${poll.category_name ? `<span class="text-xs text-gray-500">${poll.category_name}</span>` : ''}
+                </div>
+                
+                <h3 class="font-bold text-lg text-gray-800 mb-2 line-clamp-2">${poll.title}</h3>
+                <p class="text-gray-600 text-sm mb-4 line-clamp-2">${poll.question || ''}</p>
+                
+                <div class="flex items-center text-gray-500 text-sm mb-4">
+                    <span class="material-icons mr-1" style="font-size: 16px">person</span>
+                    <span class="mr-4">${poll.creator_name}</span>
+                    <span class="material-icons mr-1" style="font-size: 16px">schedule</span>
+                    <span>${timeText}</span>
+                </div>
+                
+                <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                    <div class="flex items-center">
+                        <span class="material-icons text-gray-400 mr-1" style="font-size: 16px">list</span>
+                        <span class="text-sm text-gray-600">${optionsCount} option${optionsCount > 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="material-icons text-gray-400 mr-1" style="font-size: 16px">how_to_vote</span>
+                        <span class="text-sm text-gray-600">${votesCount} vote${votesCount > 1 ? 's' : ''}</span>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // Fonction pour mettre à jour la pagination
+        function updatePagination(total, page, pages) {
+            currentPage = page;
+            totalPages = pages;
+            
+            const pagination = document.getElementById('pagination');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            
+            if (total > 0) {
+                pagination.style.display = 'flex';
+                pageInfo.textContent = `Page ${page} sur ${pages}`;
+                
+                prevBtn.disabled = page <= 1;
+                nextBtn.disabled = page >= pages;
+                
+                // Écouteurs d'événements
+                prevBtn.onclick = () => loadPolls(page - 1);
+                nextBtn.onclick = () => loadPolls(page + 1);
+            } else {
+                pagination.style.display = 'none';
+            }
+        }
+
+        // Fonctions de filtrage
+        function filterBySearch(searchTerm) {
+            currentFilters.search = searchTerm;
+            currentPage = 1;
+            loadPolls(1);
+        }
+
+        function filterByType(type) {
+            currentFilters.type = type;
+            currentPage = 1;
+            loadPolls(1);
+        }
+
+        function filterByStatus(status) {
+            currentFilters.status = status;
+            currentPage = 1;
+            loadPolls(1);
+        }
+
+        function filterByCategory(category) {
+            // Mettre à jour les boutons de catégorie
+            document.querySelectorAll('.category-filter').forEach(btn => {
+                if (btn.dataset.category === category.toString()) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            currentFilters.category = category;
+            currentPage = 1;
+            loadPolls(1);
+        }
+
+        // Fonctions pour le modal
+        async function openPollModal(pollId) {
+            try {
+                const modal = document.getElementById('pollModal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                
+                // Afficher un chargement
+                document.getElementById('modalPollContent').innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+                    </div>
+                `;
+                
+                // Charger les détails du sondage
+                const response = await fetch(`/api/polls/${pollId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderPollDetails(data.poll);
+                } else {
+                    document.getElementById('modalPollContent').innerHTML = `
+                        <div class="text-center py-8">
+                            <span class="material-icons text-red-500 text-4xl mb-4">error</span>
+                            <p class="text-gray-600">Erreur lors du chargement des détails</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erreur ouverture modal:', error);
+                closeModal();
+            }
+        }
+
+        function renderPollDetails(poll) {
+            // Mettre à jour le type
+            let typeLabel, typeColor, icon;
+            switch(poll.poll_category) {
+                case 'sondage':
+                    typeLabel = 'Sondage';
+                    typeColor = 'bg-blue-100 text-blue-800';
+                    icon = 'poll';
+                    break;
+                case 'vote':
+                    typeLabel = 'Vote Officiel';
+                    typeColor = 'bg-green-100 text-green-800';
+                    icon = 'how_to_vote';
+                    break;
+                case 'election':
+                    typeLabel = 'Élection';
+                    typeColor = 'bg-purple-100 text-purple-800';
+                    icon = 'gavel';
+                    break;
+            }
+            
+            document.getElementById('modalPollType').className = `inline-block px-3 py-1 rounded-full text-xs font-medium mb-2 ${typeColor}`;
+            document.getElementById('modalPollType').innerHTML = `
+                <span class="material-icons align-text-bottom mr-1" style="font-size: 14px">${icon}</span>
+                ${typeLabel}
+            `;
+            
+            // Titre et question
+            document.getElementById('modalPollTitle').textContent = poll.title;
+            document.getElementById('modalPollQuestion').textContent = poll.question;
+            
+            // Contenu principal
+            const content = document.getElementById('modalPollContent');
+            
+            // Calculer le temps restant
+            const endDate = new Date(poll.end_time);
+            const now = new Date();
+            const timeLeft = endDate - now;
+            const isActive = timeLeft > 0 && poll.status === 'active';
+            
+            // Informations
+            const infos = `
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-500 mb-1">Créé par</p>
+                        <p class="font-medium">${poll.creator_name}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-500 mb-1">Date de fin</p>
+                        <p class="font-medium">${new Date(poll.end_time).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}</p>
+                    </div>
+                </div>
+            `;
+            
+            // Description
+            const description = poll.description ? `
+                <div class="mb-6">
+                    <h3 class="font-medium text-gray-700 mb-2">Description</h3>
+                    <p class="text-gray-600">${poll.description}</p>
+                </div>
+            ` : '';
+            
+            // Options (si actif et l'utilisateur n'a pas voté)
+            let optionsSection = '';
+            if (isActive && !poll.has_voted) {
+                optionsSection = `
+                    <div class="mb-6">
+                        <h3 class="font-medium text-gray-700 mb-4">Options</h3>
+                        <div class="space-y-3" id="voteOptions">
+                            ${poll.options.map(option => `
+                                <button 
+                                    onclick="selectOption(this, ${option.id})"
+                                    class="w-full text-left p-4 rounded-lg border border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 transition"
+                                    data-option-id="${option.id}"
+                                >
+                                    ${option.option_text}
+                                    ${option.option_image ? '<br><img src="' + option.option_image + '" class="mt-2 max-h-32 rounded-lg">' : ''}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <button 
+                            onclick="submitVote(${poll.id})"
+                            id="voteButton"
+                            class="w-full mt-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            disabled
+                        >
+                            Voter
+                        </button>
+                    </div>
+                `;
+            } else if (poll.has_voted) {
+                optionsSection = `
+                    <div class="mb-6">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <span class="material-icons text-green-600 mr-2">check_circle</span>
+                                <p class="text-green-700">Vous avez déjà voté pour ce ${poll.poll_category}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Résultats (si terminé ou si l'utilisateur a voté)
+            let resultsSection = '';
+            if (!isActive || poll.has_voted) {
+                resultsSection = `
+                    <div class="mb-6">
+                        <h3 class="font-medium text-gray-700 mb-4">Résultats</h3>
+                        <div class="space-y-4" id="resultsContainer">
+                            ${poll.options.map(option => {
+                                const percentage = poll.total_votes > 0 
+                                    ? Math.round((option.vote_count / poll.total_votes) * 100) 
+                                    : 0;
+                                
+                                return `
+                                    <div>
+                                        <div class="flex justify-between mb-1">
+                                            <span class="text-gray-700">${option.option_text}</span>
+                                            <span class="font-medium">${option.vote_count} votes (${percentage}%)</span>
+                                        </div>
+                                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full bg-indigo-500 rounded-full" style="width: ${percentage}%"></div>
+                                        </div>
+>>>>>>> Stashed changes
                                     </div>
                                 `;
                             }).join('')}
                         </div>
+<<<<<<< Updated upstream
                     ` : ''}
 
                     <div class="poll-interactions">
@@ -1744,6 +2277,43 @@
 
         async function submitVote(pollId, options) {
             try {
+=======
+                        <p class="text-sm text-gray-500 mt-2">Total des votes: ${poll.total_votes || 0}</p>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = infos + description + optionsSection + resultsSection;
+        }
+
+        let selectedOption = null;
+
+        function selectOption(button, optionId) {
+            // Désélectionner l'option précédente
+            document.querySelectorAll('#voteOptions button').forEach(btn => {
+                btn.classList.remove('option-selected', 'bg-indigo-100', 'border-indigo-300');
+            });
+            
+            // Sélectionner la nouvelle option
+            button.classList.add('option-selected', 'bg-indigo-100', 'border-indigo-300');
+            selectedOption = optionId;
+            
+            // Activer le bouton de vote
+            document.getElementById('voteButton').disabled = false;
+        }
+
+        async function submitVote(pollId) {
+            if (!selectedOption) return;
+            
+            try {
+                const voteButton = document.getElementById('voteButton');
+                voteButton.disabled = true;
+                voteButton.innerHTML = `
+                    <div class="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
+                    Enregistrement...
+                `;
+                
+>>>>>>> Stashed changes
                 const response = await fetch('/api/vote', {
                     method: 'POST',
                     headers: {
@@ -1751,6 +2321,7 @@
                     },
                     body: JSON.stringify({
                         poll_id: pollId,
+<<<<<<< Updated upstream
                         options: options
                     })
                 });
@@ -2308,6 +2879,100 @@
         window.showComments = showComments;
         window.showResults = showResults;
         window.submitVote = submitVote;
+=======
+                        options: [selectedOption]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Recharger les détails pour montrer les résultats
+                    openPollModal(pollId);
+                    // Recharger la liste des sondages
+                    loadPolls(currentPage);
+                } else {
+                    showError(data.message || 'Erreur lors du vote');
+                    voteButton.disabled = false;
+                    voteButton.textContent = 'Voter';
+                }
+            } catch (error) {
+                console.error('Erreur vote:', error);
+                showError('Erreur de connexion');
+                voteButton.disabled = false;
+                voteButton.textContent = 'Voter';
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('pollModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            selectedOption = null;
+        }
+
+        // Fonction utilitaire pour afficher les erreurs
+        function showError(message) {
+            // Créer un toast d'erreur
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 px-6 py-3 bg-red-500 text-white rounded-lg shadow-lg z-50 transform transition-all duration-300 animate-bounce';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Charger les catégories
+            loadCategories();
+            
+            // Charger les sondages
+            loadPolls(1);
+            
+            // Écouteurs d'événements pour les filtres
+            const searchInput = document.getElementById('searchInput');
+            const typeFilter = document.getElementById('typeFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            
+            // Recherche avec délai
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    filterBySearch(this.value);
+                }, 500);
+            });
+            
+            typeFilter.addEventListener('change', function() {
+                filterByType(this.value);
+            });
+            
+            statusFilter.addEventListener('change', function() {
+                filterByStatus(this.value);
+            });
+            
+            // Fermer le modal en cliquant en dehors
+            document.getElementById('pollModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+            
+            // Fermer avec la touche Échap
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
+>>>>>>> Stashed changes
     </script>
 </body>
 </html>

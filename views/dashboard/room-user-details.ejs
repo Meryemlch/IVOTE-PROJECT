@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> | Room Details</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* Progress bar animation */
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+        
+        /* Pulse animation for online status */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .online-pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="/rooms" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-arrow-left"></i> Retour aux Rooms
+                    </a>
+                    <h1 class="text-xl font-bold text-gray-800">
+                        <i class="fas fa-door-open text-blue-500"></i>
+                        <%= room.name %>
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
+                        <i class="fas fa-user mr-1"></i>
+                        <%= user.name %>
+                    </span>
+                    <button onclick="refreshPage()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-sync-alt"></i> Actualiser
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-6">
+        <!-- Room Header -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6 fade-in">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                        <%= room.name %>
+                        <% if (room.type === 'private') { %>
+                            <span class="ml-2 bg-purple-100 text-purple-800 text-sm font-medium px-2 py-1 rounded">
+                                <i class="fas fa-lock"></i> Privée
+                            </span>
+                        <% } else { %>
+                            <span class="ml-2 bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded">
+                                <i class="fas fa-globe"></i> Publique
+                            </span>
+                        <% } %>
+                    </h2>
+                    
+                    <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
+                        <div class="flex items-center">
+                            <i class="fas fa-crown text-yellow-500 mr-2"></i>
+                            <span>Créée par: <strong><%= room.owner_name %></strong></span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-calendar-alt mr-2"></i>
+                            <span>Créée le: <strong><%= new Date(room.created_at).toLocaleDateString('fr-FR') %></strong></span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-users mr-2"></i>
+                            <span><strong><%= room.current_members %></strong> / <%= room.max_members %> membres</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 md:mt-0">
+                    <% if (room.is_member) { %>
+                        <span class="bg-green-100 text-green-800 text-sm font-medium px-4 py-2 rounded-lg">
+                            <i class="fas fa-check-circle"></i> Membre
+                        </span>
+                    <% } else if (room.type === 'public') { %>
+                        <button onclick="joinRoom()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                            <i class="fas fa-sign-in-alt"></i> Rejoindre la Room
+                        </button>
+                    <% } %>
+                </div>
+            </div>
+            
+            <div class="border-t pt-4">
+                <h3 class="font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-info-circle text-blue-500 mr-2"></i>Description
+                </h3>
+                <p class="text-gray-600 bg-gray-50 p-4 rounded-lg">
+                    <%= room.description || "Aucune description disponible" %>
+                </p>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-3xl font-bold text-blue-600 mb-2">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="text-lg font-semibold text-gray-800" id="members-count">0</div>
+                <div class="text-sm text-gray-600">Membres</div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-3xl font-bold text-green-600 mb-2">
+                    <i class="fas fa-poll"></i>
+                </div>
+                <div class="text-lg font-semibold text-gray-800" id="polls-count">0</div>
+                <div class="text-sm text-gray-600">Sondages</div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-3xl font-bold text-yellow-600 mb-2">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <div class="text-lg font-semibold text-gray-800" id="messages-count">0</div>
+                <div class="text-sm text-gray-600">Messages</div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-3xl font-bold text-purple-600 mb-2">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="text-lg font-semibold text-gray-800" id="active-polls-count">0</div>
+                <div class="text-sm text-gray-600">Sondages Actifs</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column: Members -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-md p-6 mb-6 fade-in">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-users text-blue-500 mr-2"></i>
+                            Membres (<span id="online-count">0</span>/<span id="total-members">0</span>)
+                        </h3>
+                        <span class="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
+                            <span id="online-dot" class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1 online-pulse"></span>
+                            En ligne
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-3 max-h-96 overflow-y-auto pr-2" id="members-list">
+                        <!-- Members will be loaded here -->
+                        <div class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin text-gray-400 text-xl"></i>
+                            <p class="text-gray-500 mt-2">Chargement des membres...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Polls -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-md p-6 fade-in">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-poll-h text-green-500 mr-2"></i>
+                            Sondages
+                        </h3>
+                        <div class="flex space-x-2">
+                            <button onclick="showActivePolls()" id="btn-active" class="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium transition">
+                                Actifs
+                            </button>
+                            <button onclick="showClosedPolls()" id="btn-closed" class="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg font-medium transition">
+                                Fermés
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="polls-container">
+                        <!-- Polls will be loaded here -->
+                        <div class="text-center py-8">
+                            <i class="fas fa-spinner fa-spin text-gray-400 text-2xl"></i>
+                            <p class="text-gray-500 mt-2">Chargement des sondages...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Room Modal -->
+    <div id="joinModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 fade-in">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-door-open text-blue-500 mr-2"></i>
+                Rejoindre <%= room.name %>
+            </h3>
+            
+            <div class="mb-4">
+                <p class="text-gray-600 mb-2">Cette room est <strong><%= room.type === 'private' ? 'privée' : 'publique' %></strong>.</p>
+                <% if (room.type === 'private') { %>
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                        <div class="flex">
+                            <i class="fas fa-exclamation-triangle text-yellow-400 mt-1 mr-3"></i>
+                            <p class="text-yellow-700">Cette room nécessite un code d'accès.</p>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-medium mb-2">
+                            Code d'accès *
+                        </label>
+                        <input type="text" id="accessCode" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            placeholder="Entrez le code d'accès">
+                    </div>
+                <% } %>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeJoinModal()" 
+                    class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">
+                    Annuler
+                </button>
+                <button onclick="confirmJoinRoom()" 
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">
+                    Rejoindre
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Variables globales
+        const roomId = '<%= room.id %>';
+        const userId = '<%= user.id %>';
+        const userName = '<%= user.name %>';
+        const roomType = '<%= room.type %>';
+        let socket = null;
+        let activePolls = [];
+        let closedPolls = [];
+        let currentView = 'active';
+        let userVotes = {};
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRoomData();
+            connectWebSocket();
+            setupEventListeners();
+        });
+
+        // Charger les données de la room
+        async function loadRoomData() {
+            try {
+                const response = await fetch(`/api/rooms/${roomId}/details-user`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateRoomStats(data.stats);
+                    renderMembers(data.members);
+                    organizePolls(data.polls);
+                    renderPolls();
+                    loadUserVotes();
+                } else {
+                    showError('Erreur de chargement: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showError('Erreur de connexion au serveur');
+            }
+        }
+
+        // Mettre à jour les statistiques
+        function updateRoomStats(stats) {
+            document.getElementById('members-count').textContent = stats.total_members || 0;
+            document.getElementById('polls-count').textContent = stats.total_polls || 0;
+            document.getElementById('messages-count').textContent = stats.total_messages || 0;
+            document.getElementById('active-polls-count').textContent = stats.active_polls || 0;
+            document.getElementById('total-members').textContent = stats.total_members || 0;
+        }
+
+        // Afficher les membres
+        function renderMembers(members) {
+            const container = document.getElementById('members-list');
+            let onlineCount = 0;
+            
+            container.innerHTML = '';
+            
+            members.forEach(member => {
+                const isOwner = member.role === 'owner';
+                const isOnline = member.is_online === 1 || member.is_online === true;
+                
+                if (isOnline) onlineCount++;
+                
+                const memberHtml = `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                        <div class="flex items-center">
+                            <div class="relative">
+                                <div class="w-10 h-10 rounded-full bg-${isOwner ? 'yellow' : 'blue'}-100 flex items-center justify-center">
+                                    <i class="fas fa-user${isOwner ? '-crown' : ''} text-${isOwner ? 'yellow' : 'blue'}-600"></i>
+                                </div>
+                                ${isOnline ? `
+                                    <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full online-pulse"></div>
+                                ` : ''}
+                            </div>
+                            <div class="ml-3">
+                                <div class="font-medium text-gray-800">
+                                    ${member.name}
+                                    ${isOwner ? '<span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Propriétaire</span>' : ''}
+                                    ${member.role === 'admin' ? '<span class="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Admin</span>' : ''}
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    ${member.email}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            ${isOnline ? '<span class="text-green-600">En ligne</span>' : 'Hors ligne'}
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML += memberHtml;
+            });
+            
+            document.getElementById('online-count').textContent = onlineCount;
+        }
+
+        // Organiser les sondages
+        function organizePolls(polls) {
+            activePolls = polls.filter(poll => poll.vote_status === 'active');
+            closedPolls = polls.filter(poll => poll.vote_status === 'closed');
+        }
+
+        // Afficher les sondages
+        function renderPolls() {
+            const container = document.getElementById('polls-container');
+            const polls = currentView === 'active' ? activePolls : closedPolls;
+            
+            container.innerHTML = '';
+            
+            if (polls.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <i class="fas fa-inbox text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500 text-lg">Aucun sondage ${currentView === 'active' ? 'actif' : 'fermé'}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            polls.forEach(poll => {
+                const pollHtml = createPollCard(poll);
+                container.innerHTML += pollHtml;
+            });
+            
+            // Attacher les événements après le rendu
+            attachPollEvents();
+        }
+
+        // Créer une carte de sondage
+        function createPollCard(poll) {
+            const hasVoted = poll.user_has_voted;
+            const isClosed = poll.vote_status === 'closed';
+            const isMultiple = poll.poll_type === 'multiple';
+            
+            return `
+                <div class="border rounded-xl p-5 mb-4 fade-in ${isClosed ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'}">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="text-lg font-bold text-gray-800 mb-1">
+                                ${poll.title}
+                                ${isMultiple ? '<span class="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Multiple</span>' : ''}
+                                ${isClosed ? '<span class="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Fermé</span>' : 
+                                  '<span class="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Actif</span>'}
+                            </h4>
+                            <p class="text-gray-600 mb-2">${poll.question}</p>
+                            <div class="flex items-center text-sm text-gray-500">
+                                <i class="fas fa-user mr-1"></i>
+                                <span>Créé par ${poll.creator_name}</span>
+                                <span class="mx-2">•</span>
+                                <i class="far fa-clock mr-1"></i>
+                                <span>${new Date(poll.created_at).toLocaleDateString('fr-FR')}</span>
+                                ${poll.closes_at ? `
+                                    <span class="mx-2">•</span>
+                                    <i class="fas fa-hourglass-end mr-1"></i>
+                                    <span>Ferme le: ${new Date(poll.closes_at).toLocaleDateString('fr-FR')}</span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-blue-600">${poll.total_votes || 0}</div>
+                            <div class="text-sm text-gray-600">votes</div>
+                        </div>
+                    </div>
+                    
+                    <div id="poll-options-${poll.id}">
+                        ${renderPollOptions(poll, hasVoted, isClosed)}
+                    </div>
+                    
+                    ${isClosed && poll.total_votes > 0 ? `
+                        <div class="mt-4 pt-4 border-t">
+                            <h5 class="font-medium text-gray-700 mb-2">Résultats:</h5>
+                            ${renderResults(poll)}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Afficher les options de vote
+        function renderPollOptions(poll, hasVoted, isClosed) {
+            let html = '';
+            
+            poll.options.forEach((option, index) => {
+                const optionId = option.id;
+                const isSelected = userVotes[poll.id] && userVotes[poll.id].includes(optionId);
+                const votes = option.votes || 0;
+                const percentage = option.percentage || 0;
+                
+                if (isClosed || hasVoted) {
+                    // Afficher les résultats
+                    html += `
+                        <div class="mb-3">
+                            <div class="flex justify-between mb-1">
+                                <span class="font-medium ${isSelected ? 'text-blue-600' : 'text-gray-700'}">
+                                    ${option.option_text}
+                                    ${isSelected ? '<i class="fas fa-check ml-2 text-green-500"></i>' : ''}
+                                </span>
+                                <span class="font-semibold">${percentage}% (${votes})</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="progress-bar h-2.5 rounded-full ${isSelected ? 'bg-blue-600' : 'bg-blue-500'}" 
+                                     style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Afficher les boutons de vote
+                    const pollType = poll.poll_type;
+                    const inputType = pollType === 'multiple' ? 'checkbox' : 'radio';
+                    
+                    html += `
+                        <div class="mb-2">
+                            <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}">
+                                <input type="${inputType}" 
+                                       name="poll-${poll.id}" 
+                                       value="${optionId}"
+                                       ${isSelected ? 'checked' : ''}
+                                       class="mr-3 h-5 w-5 text-blue-600 focus:ring-blue-500">
+                                <span class="font-medium text-gray-700">${option.option_text}</span>
+                            </label>
+                        </div>
+                    `;
+                }
+            });
+            
+            if (!isClosed && !hasVoted) {
+                html += `
+                    <div class="mt-4">
+                        <button onclick="submitVote(${poll.id})" 
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition">
+                            <i class="fas fa-vote-yea mr-2"></i>
+                            Soumettre mon vote
+                        </button>
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+
+        // Afficher les résultats
+        function renderResults(poll) {
+            return poll.options.map(option => {
+                const votes = option.votes || 0;
+                const percentage = option.percentage || 0;
+                
+                return `
+                    <div class="mb-2">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>${option.option_text}</span>
+                            <span>${votes} votes (${percentage}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-600 h-2 rounded-full" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Soumettre un vote
+        async function submitVote(pollId) {
+            const poll = activePolls.find(p => p.id === pollId);
+            if (!poll) return;
+            
+            const isMultiple = poll.poll_type === 'multiple';
+            const optionsContainer = document.getElementById(`poll-options-${pollId}`);
+            const selectedOptions = optionsContainer.querySelectorAll(`input[name="poll-${pollId}"]:checked`);
+            
+            if (selectedOptions.length === 0) {
+                showError('Veuillez sélectionner une option');
+                return;
+            }
+            
+            if (!isMultiple && selectedOptions.length > 1) {
+                showError('Ce sondage ne permet qu\'un seul choix');
+                return;
+            }
+            
+            const optionIds = Array.from(selectedOptions).map(option => option.value);
+            
+            try {
+                const response = await fetch(`/api/rooms/polls/${pollId}/vote-simple`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ option_ids: optionIds })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Mettre à jour l'interface localement
+                    updatePollAfterVote(pollId, data.results, optionIds);
+                    showSuccess('Vote enregistré avec succès!');
+                    
+                    // Émettre l'événement WebSocket
+                    if (socket) {
+                        socket.emit('poll-vote', {
+                            room_id: roomId,
+                            poll_id: pollId,
+                            option_ids: optionIds,
+                            user_id: userId
+                        });
+                    }
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                console.error('Erreur vote:', error);
+                showError('Erreur lors de l\'envoi du vote');
+            }
+        }
+
+        // Mettre à jour un sondage après vote
+        function updatePollAfterVote(pollId, results, selectedOptionIds) {
+            // Mettre à jour les données locales
+            const pollIndex = activePolls.findIndex(p => p.id === pollId);
+            if (pollIndex !== -1) {
+                const poll = activePolls[pollIndex];
+                poll.user_has_voted = true;
+                poll.total_votes = results.total_votes;
+                
+                // Mettre à jour les options
+                poll.options.forEach((option, index) => {
+                    const resultOption = results.options.find(o => o.id == option.id);
+                    if (resultOption) {
+                        option.votes = resultOption.votes;
+                        option.percentage = resultOption.percentage;
+                        option.user_selected = selectedOptionIds.includes(option.id.toString());
+                    }
+                });
+                
+                // Mettre à jour l'interface
+                const pollCard = document.querySelector(`#poll-options-${pollId}`).parentElement;
+                const newOptionsHtml = renderPollOptions(poll, true, false);
+                document.getElementById(`poll-options-${pollId}`).innerHTML = newOptionsHtml;
+                
+                // Mettre à jour les votes utilisateur
+                if (!userVotes[pollId]) {
+                    userVotes[pollId] = [];
+                }
+                userVotes[pollId] = selectedOptionIds;
+            }
+        }
+
+        // Rejoindre une room
+        function joinRoom() {
+            if (roomType === 'private') {
+                document.getElementById('joinModal').classList.remove('hidden');
+            } else {
+                confirmJoinRoom();
+            }
+        }
+
+        function confirmJoinRoom() {
+            const accessCode = roomType === 'private' ? document.getElementById('accessCode').value : null;
+            
+            fetch(`/api/rooms/${roomId}/join`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ access_code: accessCode })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Vous avez rejoint la room avec succès!');
+                    closeJoinModal();
+                    // Recharger les données
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showError(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showError('Erreur lors de la tentative de rejoindre la room');
+            });
+        }
+
+        function closeJoinModal() {
+            document.getElementById('joinModal').classList.add('hidden');
+        }
+
+        // WebSocket
+        function connectWebSocket() {
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('WebSocket connecté');
+                socket.emit('join-room', { room_id: roomId });
+            });
+            
+            socket.on('poll-update', (data) => {
+                if (data.poll_id) {
+                    updateLiveResults(data.poll_id, data.results);
+                }
+            });
+            
+            socket.on('poll-created', (data) => {
+                if (data.room_id === roomId) {
+                    showNewPollNotification(data.poll);
+                    loadRoomData(); // Recharger les données
+                }
+            });
+            
+            socket.on('member_online', (data) => {
+                updateOnlineStatus(data.user_id, true);
+            });
+            
+            socket.on('member_offline', (data) => {
+                updateOnlineStatus(data.user_id, false);
+            });
+        }
+
+        function updateLiveResults(pollId, results) {
+            const pollIndex = activePolls.findIndex(p => p.id === pollId);
+            if (pollIndex !== -1) {
+                const poll = activePolls[pollIndex];
+                poll.total_votes = results.total_votes;
+                
+                // Mettre à jour les options
+                poll.options.forEach((option, index) => {
+                    const resultOption = results.options.find(o => o.id == option.id);
+                    if (resultOption) {
+                        option.votes = resultOption.votes;
+                        option.percentage = resultOption.percentage;
+                    }
+                });
+                
+                // Si l'utilisateur a déjà voté, mettre à jour l'affichage
+                if (poll.user_has_voted) {
+                    const optionsContainer = document.getElementById(`poll-options-${pollId}`);
+                    if (optionsContainer) {
+                        const newResultsHtml = renderPollOptions(poll, true, false);
+                        optionsContainer.innerHTML = newResultsHtml;
+                    }
+                }
+            }
+        }
+
+        function updateOnlineStatus(userId, isOnline) {
+            // Cette fonction mettrait à jour l'indicateur en ligne
+            // Pour simplifier, on recharge juste les membres
+            loadRoomData();
+        }
+
+        function showNewPollNotification(poll) {
+            const notification = document.createElement('div');
+            notification.className = 'fixed bottom-4 right-4 bg-white rounded-xl shadow-xl p-4 max-w-sm fade-in';
+            notification.innerHTML = `
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-poll-h text-green-500 text-xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="font-medium text-gray-800">Nouveau sondage!</p>
+                        <p class="text-sm text-gray-600 mt-1">${poll.title}</p>
+                        <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                                class="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            Voir
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Supprimer automatiquement après 5 secondes
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Charger les votes de l'utilisateur
+        async function loadUserVotes() {
+            try {
+                const response = await fetch(`/api/rooms/${roomId}/user-votes`);
+                const data = await response.json();
+                
+                if (data.success && data.organized) {
+                    userVotes = data.organized;
+                }
+            } catch (error) {
+                console.error('Erreur chargement votes:', error);
+            }
+        }
+
+        // Afficher les sondages actifs/fermés
+        function showActivePolls() {
+            currentView = 'active';
+            document.getElementById('btn-active').classList.add('bg-green-100', 'text-green-800');
+            document.getElementById('btn-active').classList.remove('bg-gray-100', 'text-gray-800');
+            document.getElementById('btn-closed').classList.add('bg-gray-100', 'text-gray-800');
+            document.getElementById('btn-closed').classList.remove('bg-red-100', 'text-red-800');
+            renderPolls();
+        }
+
+        function showClosedPolls() {
+            currentView = 'closed';
+            document.getElementById('btn-closed').classList.add('bg-red-100', 'text-red-800');
+            document.getElementById('btn-closed').classList.remove('bg-gray-100', 'text-gray-800');
+            document.getElementById('btn-active').classList.add('bg-gray-100', 'text-gray-800');
+            document.getElementById('btn-active').classList.remove('bg-green-100', 'text-green-800');
+            renderPolls();
+        }
+
+        // Utilitaires
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg fade-in';
+            errorDiv.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-3"></i>
+                    <div>${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(errorDiv);
+            
+            setTimeout(() => {
+                if (errorDiv.parentElement) {
+                    errorDiv.remove();
+                }
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg fade-in';
+            successDiv.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle mr-3"></i>
+                    <div>${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(successDiv);
+            
+            setTimeout(() => {
+                if (successDiv.parentElement) {
+                    successDiv.remove();
+                }
+            }, 3000);
+        }
+
+        function refreshPage() {
+            loadRoomData();
+            showSuccess('Page actualisée');
+        }
+
+        function setupEventListeners() {
+            // Mettre à jour les sondages toutes les 30 secondes
+            setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    loadRoomData();
+                }
+            }, 30000);
+            
+            // Rafraîchir automatiquement quand on revient sur l'onglet
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    loadRoomData();
+                }
+            });
+        }
+
+        // Attacher les événements aux sondages
+        function attachPollEvents() {
+            // Gestion des sélections radio/checkbox
+            document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+                input.addEventListener('change', function() {
+                    if (this.type === 'radio') {
+                        // Désélectionner les autres radios du même groupe
+                        const name = this.name;
+                        document.querySelectorAll(`input[name="${name}"]`).forEach(other => {
+                            if (other !== this) {
+                                other.closest('label').classList.remove('border-blue-500', 'bg-blue-50');
+                            }
+                        });
+                    }
+                    
+                    // Mettre à jour le style du label
+                    const label = this.closest('label');
+                    if (this.checked) {
+                        label.classList.add('border-blue-500', 'bg-blue-50');
+                    } else {
+                        label.classList.remove('border-blue-500', 'bg-blue-50');
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>

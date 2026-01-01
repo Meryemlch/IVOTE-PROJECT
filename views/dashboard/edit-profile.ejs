@@ -1,0 +1,296 @@
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Modifier mon profil</h1>
+        <a href="/profile" class="text-indigo-600 hover:text-indigo-800 flex items-center">
+            <span class="material-icons mr-1 text-sm">arrow_back</span>
+            Retour au profil
+        </a>
+    </div>
+    
+    <form id="editProfileForm" class="space-y-8">
+        <!-- Informations personnelles -->
+        <div class="space-y-6">
+            <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">
+                <span class="material-icons align-middle mr-2">person</span>
+                Informations personnelles
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Prénom *
+                    </label>
+                    <input 
+                        type="text" 
+                        name="prenom"
+                        value="<%= user.prenom %>"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                        required
+                        minlength="2"
+                    >
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Nom *
+                    </label>
+                    <input 
+                        type="text" 
+                        name="nom"
+                        value="<%= user.nom %>"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                        required
+                        minlength="2"
+                    >
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Email *
+                    </label>
+                    <input 
+                        type="email" 
+                        name="email"
+                        value="<%= user.email %>"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                        required
+                    >
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Téléphone
+                    </label>
+                    <div class="flex">
+                        <select 
+                            name="countryCode"
+                            class="w-24 px-3 py-2 border border-gray-300 rounded-l-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition bg-gray-50"
+                        >
+                            <option value="+212" <%= user.countryCode === '+212' ? 'selected' : '' %>>+212 (MA)</option>
+                            <option value="+33" <%= user.countryCode === '+33' ? 'selected' : '' %>>+33 (FR)</option>
+                            <option value="+1" <%= user.countryCode === '+1' ? 'selected' : '' %>>+1 (US)</option>
+                            <option value="+44" <%= user.countryCode === '+44' ? 'selected' : '' %>>+44 (UK)</option>
+                            <option value="+49" <%= user.countryCode === '+49' ? 'selected' : '' %>>+49 (DE)</option>
+                        </select>
+                        <input 
+                            type="tel" 
+                            name="telephone"
+                            value="<%= user.telephone %>"
+                            class="flex-1 px-4 py-2 border border-l-0 border-gray-300 rounded-r-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                            placeholder="612345678"
+                        >
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Changement de mot de passe (optionnel) -->
+        <div class="space-y-6">
+            <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">
+                <span class="material-icons align-middle mr-2">lock</span>
+                Sécurité du compte
+            </h2>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-start">
+                    <span class="material-icons text-blue-500 mr-3 mt-0.5">info</span>
+                    <div>
+                        <h3 class="font-medium text-blue-800">Changer le mot de passe</h3>
+                        <p class="text-blue-700 text-sm mt-1">
+                            Remplissez ces champs uniquement si vous souhaitez changer votre mot de passe.
+                            Sinon, laissez-les vides.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Mot de passe actuel
+                    </label>
+                    <input 
+                        type="password" 
+                        name="currentPassword"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                    >
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Nouveau mot de passe
+                    </label>
+                    <input 
+                        type="password" 
+                        name="newPassword"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                        minlength="8"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">Minimum 8 caractères</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Confirmer le nouveau mot de passe
+                    </label>
+                    <input 
+                        type="password" 
+                        name="confirmPassword"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                        minlength="8"
+                    >
+                </div>
+            </div>
+        </div>
+        
+        <!-- Boutons d'action -->
+        <div class="flex justify-end space-x-4 pt-6 border-t">
+            <a 
+                href="/profile" 
+                class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center"
+            >
+                Annuler
+            </a>
+            <button 
+                type="submit" 
+                class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center"
+            >
+                <span class="material-icons mr-2 text-sm">save</span>
+                Enregistrer les modifications
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Modal de chargement -->
+<div id="loadingModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-8 flex flex-col items-center">
+        <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-700">Mise à jour en cours...</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('editProfileForm');
+    const loadingModal = document.getElementById('loadingModal');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validation côté client
+        const formData = {
+            prenom: form.prenom.value.trim(),
+            nom: form.nom.value.trim(),
+            email: form.email.value.trim(),
+            telephone: form.telephone.value.trim(),
+            countryCode: form.countryCode.value,
+            currentPassword: form.currentPassword.value,
+            newPassword: form.newPassword.value,
+            confirmPassword: form.confirmPassword.value
+        };
+        
+        // Validation de base
+        if (!formData.prenom || formData.prenom.length < 2) {
+            showToast('Le prénom doit contenir au moins 2 caractères', 'error');
+            return;
+        }
+        
+        if (!formData.nom || formData.nom.length < 2) {
+            showToast('Le nom doit contenir au moins 2 caractères', 'error');
+            return;
+        }
+        
+        if (!formData.email || !isValidEmail(formData.email)) {
+            showToast('Email invalide', 'error');
+            return;
+        }
+        
+        // Validation du mot de passe
+        if (formData.newPassword || formData.confirmPassword) {
+            if (!formData.currentPassword) {
+                showToast('Le mot de passe actuel est requis pour changer de mot de passe', 'error');
+                return;
+            }
+            
+            if (formData.newPassword !== formData.confirmPassword) {
+                showToast('Les nouveaux mots de passe ne correspondent pas', 'error');
+                return;
+            }
+            
+            if (formData.newPassword.length < 8) {
+                showToast('Le nouveau mot de passe doit contenir au moins 8 caractères', 'error');
+                return;
+            }
+        }
+        
+        // Afficher le chargement
+        loadingModal.classList.remove('hidden');
+        loadingModal.classList.add('flex');
+        
+        // Envoyer les données
+        fetch('/api/profile/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Masquer le chargement
+            loadingModal.classList.add('hidden');
+            loadingModal.classList.remove('flex');
+            
+            if (data.success) {
+                showToast('Profil mis à jour avec succès', 'success');
+                
+                // Mettre à jour le nom dans le header si nécessaire
+                if (data.updates && data.updates.includes('prenom') || data.updates.includes('nom')) {
+                    setTimeout(() => {
+                        window.location.href = '/profile';
+                    }, 1500);
+                } else {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                }
+            } else {
+                showToast(data.errors?.join(', ') || data.message || 'Erreur lors de la mise à jour', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            loadingModal.classList.add('hidden');
+            loadingModal.classList.remove('flex');
+            showToast('Erreur serveur', 'error');
+        });
+    });
+    
+    function isValidEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+    
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+            type === 'success' ? 'bg-green-500 text-white' :
+            type === 'error' ? 'bg-red-500 text-white' :
+            'bg-blue-500 text-white'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 3000);
+    }
+});
+</script>
